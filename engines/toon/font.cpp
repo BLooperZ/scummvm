@@ -51,6 +51,17 @@ static const byte map_textToFont[0x80] = {
 	0x23, 0x08, 0x23, 0x06, 0x15, 0x23, 0x1b, 0x23, 0x23, 0x16, 0x07, 0x17, 0x1c, 0x23, 0x23, 0x23  // 0xFx
 };
 
+static const byte hebrew_map_textToFont[0x80] = {
+	 '?',  '?',  '?',  '?', 0x03,  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?', // 0x8x
+	 '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?', // 0x9x
+	 '?', 0x09,  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?', // 0xAx
+	 '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?', 0x0a, // 0xBx
+	 '?',  '?',  '?',  '?', 0x1d,  '?',  '?', 0x02,  '?',  '?',  '?',  '?',  '?',  '?',  '?',  '?', // 0xCx
+	 '?', 0x0b,  '?',  '?',  '?',  '?', 0x1e,  '?',  '?',  '?',  '?', 0x20, 0x1f,  '?',  '?', 0x19, // 0xDx
+	0x04, 0x05, 0x06,  0x07, 0x08,  0x09,  0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, // 0xEx
+	0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x17, 0x1c, 0x23, 0x23, 0x23  // 0xFx
+};
+
 byte FontRenderer::textToFont(byte c) {
 	// No need to remap simple characters.
 	if (c < 0x80)
@@ -62,6 +73,9 @@ byte FontRenderer::textToFont(byte c) {
 	// special case for it.
 	if (_vm->_language == Common::ES_ESP && c == 0xe9)
 		return 0x10;
+
+	if (true)
+		return hebrew_map_textToFont[c - 0x80];
 
 	// Use the common map to convert the extended characters.
 	return map_textToFont[c - 0x80];
@@ -90,6 +104,16 @@ void FontRenderer::renderText(int16 x, int16 y, const Common::String &origText, 
 	int32 height = 0;
 
 	const byte *text = (const byte *)origText.c_str();
+
+	int ln = strlen((const char*) text);
+	byte *rev = new byte[ln];
+
+	for (int l = 0; l < ln; l++) {
+		rev[l] = text[ln - l - 1];
+	}
+	rev[ln] = '\0';
+	text = rev;
+
 	while (*text) {
 		byte curChar = *text;
 		if (curChar == 13) {
@@ -104,6 +128,7 @@ void FontRenderer::renderText(int16 x, int16 y, const Common::String &origText, 
 		}
 		text++;
 	}
+	delete rev;
 }
 
 void FontRenderer::computeSize(const Common::String &origText, int16 *retX, int16 *retY) {
@@ -284,6 +309,16 @@ void FontRenderer::renderMultiLineText(int16 x, int16 y, const Common::String &o
 
 	for (int32 i = 0; i < numLines; i++) {
 		const byte *line = lines[i];
+		int ln = strlen((const char*) line);
+		byte *rev = new byte[ln];
+
+		for (int l = 0; l < ln; l++) {
+			rev[l] = line[ln - l - 1];
+		}
+		rev[ln] = '\0';
+		line = rev;
+
+
 		curX = x - lineSize[i] / 2;
 		_vm->addDirtyRect(curX + _vm->state()->_currentScrollValue, curY, curX + lineSize[i] + _vm->state()->_currentScrollValue + 2, curY + height);
 
@@ -295,6 +330,7 @@ void FontRenderer::renderMultiLineText(int16 x, int16 y, const Common::String &o
 			line++;
 		}
 		curY += height;
+		delete rev;
 	}
 }
 
