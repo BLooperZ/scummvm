@@ -3290,6 +3290,14 @@ void ToonEngine::drawConversationLine() {
 	}
 }
 
+void ToonEngine::drawCostumeLine(int16 x, int16 y, char* line, Graphics::Surface* frame, char color) {
+	if (line) {
+		//_fontRenderer->setFontColorByCharacter(_currentTextLineCharacterId);
+		_fontRenderer->setFont(_currentFont);
+		_fontRenderer->renderCutsceneText(x, y, line, 0, frame, color);
+	}
+}
+
 void ToonEngine::pauseEngineIntern(bool pause) {
 
 	Engine::pauseEngineIntern(pause);

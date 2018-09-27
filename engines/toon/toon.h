@@ -33,6 +33,7 @@
 #include "toon/state.h"
 #include "toon/picture.h"
 #include "toon/anim.h"
+#include "toon/subtitles.h"
 #include "toon/movie.h"
 #include "toon/font.h"
 #include "toon/text.h"
@@ -212,6 +213,8 @@ public:
 	void waitForScriptStep();
 	void doMagnifierEffect();
 
+	void drawCostumeLine(int16 x, int16 y, char* line, Graphics::Surface* frame, char color);
+
 	bool canSaveGameStateCurrently();
 	bool canLoadGameStateCurrently();
 	void pauseEngineIntern(bool pause);
@@ -336,6 +339,10 @@ public:
 	void dirtyAllScreen();
 	void addDirtyRect(int32 left, int32 top, int32 right, int32 bottom);
 	void clearDirtyRects();
+
+	Animation* getCurrentFont() {
+		return _currentFont;
+	}
 
 protected:
 	int32 _tickLength;

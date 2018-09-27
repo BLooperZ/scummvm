@@ -334,4 +334,132 @@ void FontRenderer::renderMultiLineText(int16 x, int16 y, const Common::String &o
 	}
 }
 
+
+
+
+
+
+void FontRenderer::renderCutsceneText(int16 x, int16 y, const Common::String &origText, int32 mode, Graphics::Surface* frame, char color) {
+	debugC(5, kDebugFont, "renderMultiLineText(%d, %d, %s, %d)", x, y, origText.c_str(), mode);
+
+	// divide the text in several lines
+	// based on number of characters or size of lines.
+	byte text[1024];
+	Common::strlcpy((char *)text, origText.c_str(), 1024);
+
+	byte col = color; // 0xce
+	byte currentFontColor[4] = {0, 0, col, col};
+	byte *lines[16];
+	int32 lineSize[16];
+	int32 numLines = 0;
+
+	byte *it = text;
+
+	int16 maxWidth = 0;
+	int16 curWidth = 0;
+
+	while (true) {
+		byte *lastLine = it;
+		byte *lastSpace = it;
+		int32 lastSpaceX = 0;
+		int32 curLetterNr = 0;
+		curWidth = 0;
+
+		while (*it && curLetterNr < 50 && curWidth < 580) {
+			byte curChar = *it;
+			if (curChar == 32) {
+				lastSpace = it;
+				lastSpaceX = curWidth;
+			} else
+				curChar = textToFont(curChar);
+
+			int width = _currentFont->getFrameWidth(curChar);
+			curWidth += MAX(width - 2, 0);
+			it++;
+			curLetterNr++;
+		}
+
+		if (*lastLine == 0)
+			break;
+
+		lines[numLines] = lastLine;
+
+		if (*it == 0)
+			lineSize[numLines] = curWidth;
+		else
+			lineSize[numLines] = lastSpaceX;
+
+		if (lineSize[numLines] > maxWidth)
+			maxWidth = lineSize[numLines];
+
+		lastLine = lastSpace + 1;
+		numLines++;
+
+		if (*it == 0)
+			break;
+
+		it = lastLine;
+		*lastSpace = 0;
+
+		if (numLines >= 16)
+			break;
+	}
+
+	if (curWidth > maxWidth) {
+		maxWidth = curWidth;
+	}
+	//numLines++;
+
+	// get font height (assumed to be constant)
+	int16 height = _currentFont->getHeight();
+	int32 textSize = (height - 2) * numLines;
+	y = y - textSize;
+	if (y < 30)
+		y = 30;
+	if (y + textSize > 370)
+		y = 370 - textSize;
+
+	// adapt x
+	if (x - 30 - maxWidth / 2 < 0)
+		x = maxWidth / 2 + 30;
+
+	if (x + 30 + (maxWidth / 2) > TOON_SCREEN_WIDTH)
+		x = TOON_SCREEN_WIDTH - (maxWidth / 2) - 30;
+
+	// we have good coordinates now, we can render the multi line
+	int16 curX = x;
+	int16 curY = y;
+
+	for (int32 i = 0; i < numLines; i++) {
+		const byte *line = lines[i];
+		int ln = strlen((const char*) line);
+		byte *rev = new byte[ln];
+
+		for (int l = 0; l < ln; l++) {
+			rev[l] = line[ln - l - 1];
+		}
+		rev[ln] = '\0';
+		line = rev;
+
+
+		curX = x - lineSize[i] / 2;
+		_vm->addDirtyRect(curX, curY, curX + lineSize[i] + 2, curY + height);
+
+		while (*line) {
+			byte curChar = textToFont(*line);
+			if (curChar != 32) _currentFont->drawFontFrame(*frame, curChar, curX, curY, currentFontColor);
+			curX = curX + MAX<int32>(_currentFont->getFrameWidth(curChar) - 2, 0);
+			//height = MAX(height, _currentFont->getFrameHeight(curChar));
+			line++;
+		}
+		curY += height;
+		//delete rev;
+	}
+}
+
+
+
+
+
+
 } // End of namespace Toon
