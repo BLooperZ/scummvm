@@ -1119,7 +1119,7 @@ void ScummEngine::drawString(int a, const byte *msg) {
 	if (_charset->_center) {
 		_charset->_left -= _charset->getStringWidth(a, buf) / 2;
 	} else if (_game.version >= 4 && _game.version < 7 && (_language == Common::HE_ISR || true)) {
-		// warning("FIRST BOTTTOM");
+		// warning("FIRST BOTTTOMd");
 		if (_game.id != GID_INDY4 || buf[0] == 127) {
 			if (_game.id == GID_INDY4 && buf[0] == 127) {
 				buf[0] = 32;
