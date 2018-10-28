@@ -264,6 +264,8 @@ bool KyraEngine_LoK::seq_introStory() {
 		_screen->loadBitmap("TEXT_ITA.CPS", 3, 3, &_screen->getPalette(0));
 	else if (_flags.lang == Common::IT_ITA && _flags.isTalkie)
 		_screen->loadBitmap("TEXT_ENG.CPS", 3, 3, &_screen->getPalette(0));
+	else if (_flags.lang == Common::HE_ISR)
+		_screen->loadBitmap("TEXT_HEB.CPS", 3, 3, &_screen->getPalette(0));
 	else
 		warning("no story graphics file found");
 
