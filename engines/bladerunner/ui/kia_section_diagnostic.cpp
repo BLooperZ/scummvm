@@ -26,11 +26,29 @@
 #include "bladerunner/font.h"
 #include "bladerunner/game_constants.h"
 #include "bladerunner/text_resource.h"
+#include "bladerunner/time.h"
 #include "bladerunner/ui/kia.h"
 
 namespace BladeRunner {
 
-const int KIASectionDiagnostic::kTextColors[] = { 0x0000, 0x0821, 0x1061, 0x1C82, 0x24C2, 0x2CE3, 0x3524, 0x4145, 0x4586, 0x4DC7, 0x5609, 0x5E4B, 0x668C, 0x6EEE, 0x7730, 0x7B92 };
+const Color256  KIASectionDiagnostic::kTextColors[] = {
+	{ 0, 0, 0 },
+	{ 16, 8, 8 },
+	{ 32, 24, 8 },
+	{ 56, 32, 16 },
+	{ 72, 48, 16 },
+	{ 88, 56, 24 },
+	{ 104, 72, 32 },
+	{ 128, 80, 40 },
+	{ 136, 96, 48 },
+	{ 152, 112, 56 },
+	{ 168, 128, 72 },
+	{ 184, 144, 88 },
+	{ 200, 160, 96 },
+	{ 216, 184, 112 },
+	{ 232, 200, 128 },
+	{ 240, 224, 144 }
+};
 
 KIASectionDiagnostic::KIASectionDiagnostic(BladeRunnerEngine *vm) : KIASectionBase(vm) {
 	_text     = nullptr;
@@ -45,7 +63,7 @@ void KIASectionDiagnostic::open() {
 	}
 	_vm->_kia->playActorDialogue(kActorRunciter, 140);
 	_offset = 0;
-	_timeLast = _vm->getTotalPlayTime();
+	_timeLast = _vm->_time->currentSystem();
 }
 
 void KIASectionDiagnostic::close() {
@@ -53,7 +71,7 @@ void KIASectionDiagnostic::close() {
 }
 
 void KIASectionDiagnostic::draw(Graphics::Surface &surface) {
-	int timeNow = _vm->getTotalPlayTime();
+	int timeNow = _vm->_time->currentSystem();
 
 	for (int i = 0; i < _text->getCount(); ++i) {
 		int y = kLineHeight * i + 366 - _offset;
@@ -67,7 +85,7 @@ void KIASectionDiagnostic::draw(Graphics::Surface &surface) {
 
 			const char *text = _text->getText(i);
 			if (text) {
-				_vm->_mainFont->drawColor(text, surface, 320 - _vm->_mainFont->getTextWidth(text) / 2, y, kTextColors[colorIndex]);
+				_vm->_mainFont->drawColor(text, surface, 320 - _vm->_mainFont->getTextWidth(text) / 2, y, surface.format.RGBToColor(kTextColors[colorIndex].r, kTextColors[colorIndex].g, kTextColors[colorIndex].b));
 			}
 		}
 	}

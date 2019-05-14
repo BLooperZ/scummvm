@@ -224,10 +224,14 @@ void Resource::unalloc() {
 }
 
 void Resource::writeToStream(Common::WriteStream *stream) const {
-	stream->writeByte(getType() | 0x80); // 0x80 is required by old Sierra SCI, otherwise it wont accept the patch file
-	stream->writeByte(_headerSize);
-	if (_headerSize > 0)
+	if (_headerSize == 0) {
+		// create patch file header
+		stream->writeByte(getType() | 0x80); // 0x80 is required by old Sierra SCI, otherwise it wont accept the patch file
+		stream->writeByte(_headerSize);
+	} else {
+		// use existing patch file header
 		stream->write(_header, _headerSize);
+	}
 	stream->write(_data, _size);
 }
 
@@ -1613,7 +1617,7 @@ void ResourceManager::readResourcePatchesBase36() {
 			SearchMan.listMatchingMembers(files, "A???????.???");
 			SearchMan.listMatchingMembers(files, "B???????.???");
 		} else {
-			SearchMan.listMatchingMembers(files, "#???????.???");
+			SearchMan.listMatchingMembers(files, "\\#???????.???");
 #ifdef ENABLE_SCI32
 			SearchMan.listMatchingMembers(files, "S???????.???");
 			SearchMan.listMatchingMembers(files, "T???????.???");
@@ -1626,7 +1630,8 @@ void ResourceManager::readResourcePatchesBase36() {
 
 			// The S/T prefixes often conflict with non-patch files and generate
 			// spurious warnings about invalid patches
-			if (name.hasSuffix(".DLL") || name.hasSuffix(".EXE") || name.hasSuffix(".TXT") || name.hasSuffix(".OLD") || name.hasSuffix(".WIN") || name.hasSuffix(".DOS")) {
+			if (name.hasSuffix(".DLL") || name.hasSuffix(".EXE") || name.hasSuffix(".TXT") || name.hasSuffix(".OLD") || name.hasSuffix(".WIN") || name.hasSuffix(".DOS") ||
+				name.hasSuffix(".HLP") || name.hasSuffix(".DRV")) {
 				continue;
 			}
 
@@ -2102,7 +2107,12 @@ Resource *ResourceManager::updateResource(ResourceId resId, ResourceSource *src,
 		return res;
 	}
 
-	if (validateResource(resId, sourceMapLocation, src->getLocationName(), offset, size, volumeFile->size())) {
+	// Resources from MacResourceForkResourceSource do not have a source size
+	// since the source "volume file" is the empty data fork, and they don't
+	// have an offset either since the MacResManager handles this, so trying to
+	// validate these resources using the normal validation would always fail
+	if (src->getSourceType() == kSourceMacResourceFork ||
+		validateResource(resId, sourceMapLocation, src->getLocationName(), offset, size, volumeFile->size())) {
 		if (res == nullptr) {
 			res = new Resource(this, resId);
 			_resMap.setVal(resId, res);

@@ -47,6 +47,8 @@ class String {
 public:
 	static const uint32 npos = 0xFFFFFFFF;
 
+	static void releaseMemoryPoolMutex();
+
 	typedef char          value_type;
 	/**
 	 * Unsigned version of the underlying type. This can be used to cast
@@ -177,6 +179,7 @@ public:
 	 *      "*": any character, any amount of times.
 	 *      "?": any character, only once.
 	 *      "#": any decimal digit, only once.
+	 *      "\#": #, only once.
 	 *
 	 * Example strings/patterns:
 	 *      String: monkey.s01   Pattern: monkey.s??    => true

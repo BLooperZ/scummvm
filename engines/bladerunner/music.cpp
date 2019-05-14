@@ -27,6 +27,7 @@
 #include "bladerunner/bladerunner.h"
 #include "bladerunner/game_info.h"
 #include "bladerunner/savefile.h"
+#include "bladerunner/game_constants.h"
 
 #include "common/timer.h"
 
@@ -35,7 +36,7 @@ namespace BladeRunner {
 Music::Music(BladeRunnerEngine *vm) {
 	_vm = vm;
 	_channel = -1;
-	_musicVolume = 65;
+	_musicVolume = BLADERUNNER_ORIGINAL_SETTINGS ? 65 : 100;
 	_isPlaying = false;
 	_isPaused = false;
 	_current.loop = false;
@@ -45,7 +46,7 @@ Music::Music(BladeRunnerEngine *vm) {
 }
 
 Music::~Music() {
-	stop(1);
+	stop(0);
 	while (isPlaying()) {
 		// wait for the mixer to finish
 	}
@@ -99,7 +100,7 @@ bool Music::play(const Common::String &trackName, int volume, int pan, int timeF
 	if (_channel < 0) {
 		delete _stream;
 		_stream = nullptr;
-		delete _data;
+		delete[] _data;
 		_data = nullptr;
 
 		return false;
@@ -131,6 +132,11 @@ void Music::stop(int delay) {
 	if (_channel < 0) {
 		return;
 	}
+
+#if !BLADERUNNER_ORIGINAL_BUGS
+	// In original game, on queued music was not removed and it started playing after actor left the scene
+	_isNextPresent = false;
+#endif
 
 	_current.loop = false;
 	_vm->_audioMixer->stop(_channel, 60 * delay);
@@ -164,7 +170,7 @@ int Music::getVolume() {
 
 void Music::playSample() {
 	if (!isPlaying()) {
-		play(_vm->_gameInfo->getSfxTrack(512), 100, 0, 2, -1, 0, 3);
+		play(_vm->_gameInfo->getSfxTrack(kSfxMUSVOL8), 100, 0, 2, -1, 0, 3);
 	}
 }
 
@@ -248,7 +254,7 @@ void Music::ended() {
 	_isPlaying = false;
 	_channel = -1;
 
-	delete _data;
+	delete[] _data;
 	_data = nullptr;
 
 	_vm->getTimerManager()->installTimerProc(timerCallbackNext, 100 * 1000, this, "BladeRunnerMusicNextTimer");
@@ -293,12 +299,17 @@ void Music::timerCallbackNext(void *refCon) {
 byte *Music::getData(const Common::String &name) {
 	// NOTE: This is not part original game, loading data is done in the mixer and its using buffering to limit memory usage
 	Common::SeekableReadStream *stream = _vm->getResourceStream(name);
+
 	if (stream == nullptr) {
 		return nullptr;
 	}
+
 	uint32 size = stream->size();
-	byte *data = (byte *)malloc(size);
+	byte *data = new byte[size];
 	stream->read(data, size);
+
+	delete stream;
+
 	return data;
 }
 

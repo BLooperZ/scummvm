@@ -214,7 +214,7 @@ IMPLEMENT_FUNCTION_I(11, Boutarel, function11, bool)
 				break;
 
 			case kChapter1:
-				getSound()->playSound(kEntityBoutarel, "MRB1075", kFlagInvalid, 60);
+				getSound()->playSound(kEntityBoutarel, "MRB1075", kSoundVolumeEntityDefault, 60);
 				break;
 
 			case kChapter3:
@@ -742,8 +742,8 @@ IMPLEMENT_FUNCTION(21, Boutarel, chapter1Handler)
 			if (getEntities()->isPlayerPosition(kCarRedSleeping, 54) || getEntities()->isPlayerPosition(kCarRedSleeping, 44))
 				getScenes()->loadSceneFromPosition(kCarRedSleeping, 10);
 
-			getEntities()->updatePositionExit(kEntityBoutarel, kCarRedSleeping, 54);
-			getEntities()->updatePositionExit(kEntityBoutarel, kCarRedSleeping, 44);
+			getEntities()->updatePositionEnter(kEntityBoutarel, kCarRedSleeping, 54);
+			getEntities()->updatePositionEnter(kEntityBoutarel, kCarRedSleeping, 44);
 
 			setCallback(4);
 			setup_playSound("MRB1074");

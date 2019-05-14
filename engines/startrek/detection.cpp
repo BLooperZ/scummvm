@@ -168,6 +168,20 @@ static const StarTrekGameDescription gameDescriptions[] = {
 		0,
 	},
 
+	{ // ST25 DOS floppy demo (EN)
+		{
+			"st25",
+			"Demo",
+			AD_ENTRY1s("data.001", "093909a9d3dd3afd207c085a24baf9cf", 2598376),
+			Common::EN_ANY,
+			Common::kPlatformDOS,
+			ADGF_DEMO,
+			GUIO0()
+		},
+		GType_ST25,
+		GF_DEMO,
+	},
+
 	// These are commented until future notice because I don't have complete information
 	// on them (the file size for data.000 / data.001). Will be relying on people to
 	// report the missing data.
@@ -271,6 +285,20 @@ static const StarTrekGameDescription gameDescriptions[] = {
 		GF_CDROM,
 	},
 
+	{ // STJR DOS CD-ROM edition (GER)
+		{
+			"stjr",
+			"CD",
+			AD_ENTRY1s("data.001", "1c8de3c02f69c07c582d59d3c29e4dd9", 2958818),
+			Common::DE_DEU,
+			Common::kPlatformDOS,
+			ADGF_NO_FLAGS,
+			GUIO0()
+		},
+		GType_STJR,
+		GF_CDROM,
+	},
+
 	{ AD_TABLE_END_MARKER, 0, 0 }
 };
 
@@ -283,7 +311,7 @@ public:
 	}
 
 	virtual const char *getName() const {
-		return "Star Trek Engine";
+		return "Star Trek";
 	}
 
 	virtual const char *getOriginalCopyright() const {

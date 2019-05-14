@@ -46,6 +46,7 @@ MODULE_OBJS := \
 	softsynth/opl/dbopl.o \
 	softsynth/opl/dosbox.o \
 	softsynth/opl/mame.o \
+	softsynth/fmtowns_pc98/pc98_audio.o \
 	softsynth/fmtowns_pc98/towns_audio.o \
 	softsynth/fmtowns_pc98/towns_euphony.o \
 	softsynth/fmtowns_pc98/towns_midi.o \
@@ -65,7 +66,10 @@ MODULE_OBJS += \
 	softsynth/opl/nuked.o
 endif
 
-
+ifdef USE_A52
+MODULE_OBJS += \
+	decoders/ac3.o
+endif
 
 ifdef USE_ALSA
 MODULE_OBJS += \

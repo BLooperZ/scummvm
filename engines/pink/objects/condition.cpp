@@ -28,12 +28,12 @@
 
 namespace Pink {
 
-void Pink::ConditionVariable::deserialize(Archive &archive) {
+void ConditionVariable::deserialize(Archive &archive) {
 	_name = archive.readString();
 	_value = archive.readString();
 }
 
-bool Pink::ConditionGameVariable::evaluate(Actor *actor) {
+bool ConditionGameVariable::evaluate(Actor *actor) {
 	return actor->getPage()->getModule()->getGame()->checkValueOfVariable(_name, _value);
 }
 
@@ -41,7 +41,7 @@ void ConditionGameVariable::toConsole() {
 	debugC(6, kPinkDebugLoadingObjects, "\t\tConditionGameVariable: _name=%s, _value=%s", _name.c_str(), _value.c_str());
 }
 
-bool Pink::ConditionModuleVariable::evaluate(Actor *actor) {
+bool ConditionModuleVariable::evaluate(Actor *actor) {
 	return actor->getPage()->getModule()->checkValueOfVariable(_name, _value);
 }
 
@@ -49,7 +49,7 @@ void ConditionModuleVariable::toConsole() {
 	debugC(6, kPinkDebugLoadingObjects, "\t\tConditionModuleVariable: _name=%s, _value=%s", _name.c_str(), _value.c_str());
 }
 
-bool Pink::ConditionNotModuleVariable::evaluate(Actor *actor) {
+bool ConditionNotModuleVariable::evaluate(Actor *actor) {
 	return !ConditionModuleVariable::evaluate(actor);
 }
 
@@ -81,7 +81,9 @@ void ConditionInventoryItemOwner::deserialize(Archive &archive) {
 bool ConditionInventoryItemOwner::evaluate(Actor *actor) {
 	InventoryMgr *mgr = actor->getInventoryMgr();
 	InventoryItem *item = mgr->findInventoryItem(_item);
-	return item->getCurrentOwner() == _owner;
+	if (item)
+		return item->getCurrentOwner() == _owner;
+	return false;
 }
 
 void ConditionInventoryItemOwner::toConsole() {

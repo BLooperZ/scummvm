@@ -35,8 +35,9 @@ class ButtonWidget;
 
 class UnknownGameDialog : public Dialog {
 public:
-	UnknownGameDialog(const DetectionResults &detectionResults);
+	UnknownGameDialog(const DetectedGame &detectedGame);
 
+	void handleMouseWheel(int x, int y, int direction) override;
 private:
 	void rebuild();
 
@@ -45,13 +46,15 @@ private:
 	void reflowLayout() override;
 
 	Common::String generateBugtrackerURL();
+	static Common::String encodeUrlString(const Common::String &string);
 
-	const DetectionResults &_detectionResults;
+	const DetectedGame &_detectedGame;
 	ScrollContainerWidget *_textContainer;
 	Common::Array<StaticTextWidget *> _textWidgets;
-	ButtonWidget* _openBugTrackerUrlButton;
-	ButtonWidget* _copyToClipboardButton;
-	ButtonWidget* _closeButton;
+	ButtonWidget *_openBugTrackerUrlButton;
+	ButtonWidget *_copyToClipboardButton;
+	ButtonWidget *_closeButton;
+	ButtonWidget *_addAnywayButton;
 };
 
 } // End of namespace GUI

@@ -87,7 +87,7 @@ bool Scene::open(int setId, int sceneId, bool isLoadingGame) {
 	const Common::String sceneName = _vm->_gameInfo->getSceneName(_sceneId);
 
 	if (isLoadingGame) {
-		// TODO: _vm->overlays->resume()
+		_vm->_overlays->resume(true);
 	} else {
 		_regions->clear();
 		_exits->clear();
@@ -113,7 +113,7 @@ bool Scene::open(int setId, int sceneId, bool isLoadingGame) {
 		delete _vqaPlayer;
 	}
 
-	_vqaPlayer = new VQAPlayer(_vm, &_vm->_surfaceBack);
+	_vqaPlayer = new VQAPlayer(_vm, &_vm->_surfaceBack, vqaName);
 
 	if (!_vm->_sceneScript->open(sceneName)) {
 		return false;
@@ -138,7 +138,7 @@ bool Scene::open(int setId, int sceneId, bool isLoadingGame) {
 		return true;
 	}
 
-	if (!_vqaPlayer->open(vqaName)) {
+	if (!_vqaPlayer->open()) {
 		return false;
 	}
 
@@ -160,21 +160,20 @@ bool Scene::open(int setId, int sceneId, bool isLoadingGame) {
 		Actor *actor = _vm->_actors[i];
 		if (actor->getSetId() == setId) {
 			_vm->_sceneObjects->addActor(
-				   i + kSceneObjectOffsetActors,
-				   actor->getBoundingBox(),
-				   actor->getScreenRectangle(),
-				   true,
-				   false,
-				   actor->isTarget(),
-				   actor->isRetired());
+				i + kSceneObjectOffsetActors,
+				actor->getBoundingBox(),
+				actor->getScreenRectangle(),
+				true,
+				false,
+				actor->isTarget(),
+				actor->isRetired()
+			);
 		}
 	}
 
 	_set->addObjectsToScene(_vm->_sceneObjects);
 	_vm->_items->addToSet(setId);
 	_vm->_sceneObjects->updateObstacles();
-	// TODO: add all items to scene
-	// TODO: calculate walking obstacles??
 
 	if (_specialLoopMode != kSceneLoopModeLoseControl) {
 		_vm->_sceneScript->playerWalkedIn();
@@ -209,8 +208,8 @@ bool Scene::close(bool isLoadingGame) {
 	return result;
 }
 
-int Scene::advanceFrame() {
-	int frame = _vqaPlayer->update();
+int Scene::advanceFrame(bool useTime) {
+	int frame = _vqaPlayer->update(false, true, useTime);
 	if (frame >= 0) {
 		blit(_vm->_surfaceBack, _vm->_surfaceFront);
 		_vqaPlayer->updateZBuffer(_vm->_zbuffer);
@@ -253,7 +252,9 @@ void Scene::resume(bool isLoadingGame) {
 
 	int targetFrame = _frame;
 
-	if (!isLoadingGame) {
+	if (isLoadingGame) {
+		_vqaPlayer->open();
+	} else {
 		_vm->_zbuffer->disable();
 	}
 
@@ -266,7 +267,7 @@ void Scene::resume(bool isLoadingGame) {
 		if (_defaultLoopPreloadedSet) {
 			_specialLoopMode = kSceneLoopModeNone;
 			startDefaultLoop();
-			advanceFrame();
+			advanceFrame(false);
 			loopStartSpecial(_specialLoopMode, _specialLoop, false);
 		} else {
 			_defaultLoopPreloadedSet = true;
@@ -283,7 +284,7 @@ void Scene::resume(bool isLoadingGame) {
 
 	int frame;
 	do {
-		frame = advanceFrame();
+		frame = advanceFrame(false);
 	} while (frame >= 0 && frame != targetFrame);
 
 	if (!isLoadingGame) {

@@ -93,6 +93,7 @@ public:
 		int panEndMin, int panEndMax,
 		int priority, int unk);
 	void playSound(int sfxId, int volume, int panStart, int panEnd, int priority);
+	void playSpeech(int actorId, int sentenceId, int volume, int panStart, int panEnd, int priority);
 
 	void addLoopingSound(int sfxId, int volume, int pan, int delay);
 	void adjustLoopingSound(int sfxId, int volume, int pan, int delay);
@@ -116,14 +117,6 @@ private:
 
 	int findAvailableLoopingTrack() const;
 	int findLoopingTrackByHash(int32 hash) const;
-
-	// stopNonLoopingTrack
-	// stopLoopingTrack
-
-	// saveToSaveGame
-	// initFromSaveGame
-	// addSoundByName
-	// playVolumeAdjustSound
 
 	void addSoundByName(
 		const Common::String &name,

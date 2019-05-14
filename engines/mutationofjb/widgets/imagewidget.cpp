@@ -25,7 +25,7 @@
 
 namespace MutationOfJB {
 
-ImageWidget::ImageWidget(Gui &gui, const Common::Rect &area, const Graphics::Surface &image) :
+ImageWidget::ImageWidget(GuiScreen &gui, const Common::Rect &area, const Graphics::Surface &image) :
 	Widget(gui, area),
 	_image(image) {}
 

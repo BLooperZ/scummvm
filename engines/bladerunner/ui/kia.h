@@ -25,12 +25,10 @@
 
 #include "common/str.h"
 
+#include "graphics/surface.h"
+
 namespace Common {
 struct KeyState;
-}
-
-namespace Graphics {
-struct Surface;
 }
 
 namespace BladeRunner {
@@ -78,18 +76,18 @@ class KIA {
 
 	BladeRunnerEngine *_vm;
 
-	int _forceOpen;
 	int _transitionId;
 
-	int        _playerVqaTimeLast;
-	VQAPlayer *_playerVqaPlayer;
-	int        _playerVqaFrame;
-	int        _playerVisualizerState;
-	int        _playerPhotographId;
-	Shape     *_playerPhotograph;
-	int        _playerSliceModelId;
-	float      _playerSliceModelAngle;
-	int        _timeLast;
+	int                _playerVqaTimeLast;
+	VQAPlayer         *_playerVqaPlayer;
+	int                _playerVqaFrame;
+	int                _playerVisualizerState;
+	int                _playerPhotographId;
+	Shape             *_playerPhotograph;
+	int                _playerSliceModelId;
+	float              _playerSliceModelAngle;
+	Graphics::Surface  _playerImage;
+	int                _timeLast;
 
 	ActorDialogueQueueEntry _playerActorDialogueQueue[kPlayerActorDialogueQueueCapacity];
 	int                     _playerActorDialogueQueuePosition;
@@ -117,14 +115,21 @@ class KIA {
 
 	int                   _pogoPos;
 
+
 public:
-	KIALog     *_log;
-	KIAScript  *_script;
-	KIAShapes  *_shapes;
+	bool              _forceOpen;
+
+	KIALog           *_log;
+	KIAScript        *_script;
+	KIAShapes        *_shapes;
+
+	Graphics::Surface _thumbnail;
 
 public:
 	KIA(BladeRunnerEngine *vm);
 	~KIA();
+
+	void reset();
 
 	void openLastOpened();
 	void open(KIASections sectionId);
@@ -136,6 +141,7 @@ public:
 
 	void handleMouseDown(int mouseX, int mouseY, bool mainButton);
 	void handleMouseUp(int mouseX, int mouseY, bool mainButton);
+	void handleMouseScroll(int mouseX, int mouseY, int direction); // Added by ScummVM team
 	void handleKeyUp(const Common::KeyState &kbd);
 	void handleKeyDown(const Common::KeyState &kbd);
 
@@ -143,6 +149,7 @@ public:
 	void playActorDialogue(int actorId, int sentenceId);
 	void playSliceModel(int sliceModelId);
 	void playPhotograph(int photographId);
+	void playImage(const Graphics::Surface &image);
 
 private:
 	static void mouseDownCallback(int buttonId, void *callbackData);

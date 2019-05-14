@@ -30,7 +30,8 @@ namespace BladeRunner {
 bool Chapters::enterChapter(int chapter) {
 	int id = _resourceIds[chapter];
 
-	_vm->_sliceAnimations->openFrames(id);
+	if (!_vm->_sliceAnimations->openFrames(id))
+		return false;
 
 	if (!_vm->openArchive("A.TLK"))
 		return false;
@@ -38,24 +39,21 @@ bool Chapters::enterChapter(int chapter) {
 	if (!_vm->openArchive(Common::String::format("VQA%d.MIX", MIN(id, 3))))
 		return false;
 
-	if (!_vm->openArchive(Common::String::format("%d.TLK", MIN(id, 3))))
-		return false;
+	if (_vm->_cutContent) {
+		for (int chi = 1; chi < 4; ++chi) {
+			if (!_vm->isArchiveOpen(Common::String::format("%d.TLK", chi))
+			    && !_vm->openArchive(Common::String::format("%d.TLK", chi))
+			){
+				return false;
+			}
+		}
+	} else {
+		if (!_vm->openArchive(Common::String::format("%d.TLK", MIN(id, 3))))
+			return false;
+	}
 
 	if (!_vm->openArchive(Common::String::format("OUTTAKE%d.MIX", id)))
 		return false;
-
-#if BLADERUNNER_DEBUG_GAME
-	_vm->openArchive("OUTTAKE1.MIX");
-	_vm->openArchive("OUTTAKE2.MIX");
-	_vm->openArchive("OUTTAKE3.MIX");
-	_vm->openArchive("OUTTAKE4.MIX");
-	_vm->openArchive("VQA1.MIX");
-	_vm->openArchive("VQA2.MIX");
-	_vm->openArchive("VQA3.MIX");
-	_vm->openArchive("1.TLK");
-	_vm->openArchive("2.TLK");
-	_vm->openArchive("3.TLK");
-#endif
 
 	_chapter = chapter;
 	_hasOpenResources = true;
@@ -65,9 +63,23 @@ bool Chapters::enterChapter(int chapter) {
 void Chapters::closeResources() {
 	int id = _resourceIds[_chapter];
 
+#if BLADERUNNER_ORIGINAL_BUGS
 	_vm->closeArchive("A.TLK");
+#else
+	if (_vm->isArchiveOpen("A.TLK")) {
+		_vm->closeArchive("A.TLK");
+	}
+#endif // BLADERUNNER_ORIGINAL_BUGS
 	_vm->closeArchive(Common::String::format("VQA%d.MIX", MIN(id, 3)));
-	_vm->closeArchive(Common::String::format("%d.TLK", MIN(id, 3)));
+	if (_vm->_cutContent) {
+		for (int chi = 1; chi < 4; ++chi) {
+			if (_vm->isArchiveOpen(Common::String::format("%d.TLK", chi))) {
+				_vm->closeArchive(Common::String::format("%d.TLK", chi));
+			}
+		}
+	} else {
+		_vm->closeArchive(Common::String::format("%d.TLK", MIN(id, 3)));
+	}
 	_vm->closeArchive(Common::String::format("OUTTAKE%d.MIX", id));
 	_hasOpenResources = false;
 }

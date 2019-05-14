@@ -35,10 +35,6 @@
 	#define GCC_ATLEAST(major, minor) 0
 #endif
 
-#if defined(_WIN32_WCE) && _WIN32_WCE < 300
-	#define NONSTANDARD_PORT
-#endif
-
 #if defined(NONSTANDARD_PORT)
 
 	// Ports which need to perform #includes and #defines visible in
@@ -89,8 +85,6 @@
 		}
 		#endif
 
-		#if !defined(_WIN32_WCE)
-
 		#define WIN32_LEAN_AND_MEAN		// Exclude rarely-used stuff from Windows headers
 		#define NOGDICAPMASKS
 		#define OEMRESOURCE
@@ -114,13 +108,6 @@
 		#define NOWH
 		#define NOSOUND
 		#define NODRAWTEXT
-
-		#endif
-
-		#if defined(ARRAYSIZE)
-		// VS2005beta2 introduces new stuff in winnt.h
-		#undef ARRAYSIZE
-		#endif
 
 	#endif
 
@@ -284,7 +271,6 @@
 	#if defined(__DC__) || \
 		  defined(__DS__) || \
 		  defined(__3DS__) || \
-		  defined(__GP32__) || \
 		  defined(IPHONE) || \
 		  defined(__PLAYSTATION2__) || \
 		  defined(__PSP__) || \
@@ -344,6 +330,9 @@
 
 #endif
 
+#if defined(USE_TREMOR) && !defined(USE_VORBIS)
+#define USE_VORBIS // make sure this one is defined together with USE_TREMOR!
+#endif
 
 //
 // Fallbacks / default values for various special macros

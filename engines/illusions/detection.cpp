@@ -40,6 +40,15 @@ static const PlainGameDescriptor illusionsGames[] = {
 
 namespace Illusions {
 
+struct IllusionsGameDescription {
+	ADGameDescription desc;
+	int gameId;
+};
+
+int IllusionsEngine::getGameId() const {
+	return _gameDescription->gameId;
+}
+
 static const IllusionsGameDescription gameDescriptions[] = {
 	{
 		{
@@ -62,6 +71,19 @@ static const IllusionsGameDescription gameDescriptions[] = {
 			Common::EN_ANY,
 			Common::kPlatformWindows,
 			ADGF_DROPPLATFORM,
+			GUIO0()
+		},
+		kGameIdDuckman
+	},
+
+	{
+		{
+			"duckman",
+			"Demo",
+			AD_ENTRY1s("duckman.gam", "71d01e3f3d9d4e51cd69f71028745610", 7127040),
+			Common::EN_ANY,
+			Common::kPlatformWindows,
+			ADGF_DROPPLATFORM | ADGF_DEMO,
 			GUIO0()
 		},
 		kGameIdDuckman

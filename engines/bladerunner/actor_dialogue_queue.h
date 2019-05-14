@@ -32,7 +32,7 @@ class SaveFileReadStream;
 class SaveFileWriteStream;
 
 class ActorDialogueQueue {
-	static const int kMaxEntries = 25;
+	static const uint kMaxEntries = 25;
 
 	struct Entry {
 		bool isNotPause;
@@ -64,6 +64,7 @@ public:
 	void add(int actorId, int sentenceId, int animationMode);
 	void addPause(int delay);
 	void flush(int a1, bool callScript);
+	bool isEmpty();
 	void tick();
 
 	void save(SaveFileWriteStream &f);

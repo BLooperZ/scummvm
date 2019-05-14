@@ -44,11 +44,12 @@ bool Font::open(const Common::String &fileName, int screenWidth, int screenHeigh
 	_screenHeight = screenHeight;
 	_spacing1 = spacing1;
 	_spacing2 = spacing2;
+	_defaultColor = color;
 	_color = color;
 
 	Common::ScopedPtr<Common::SeekableReadStream> stream(_vm->getResourceStream(fileName));
 	if (!stream) {
-		debug("Font::open failed to open '%s'", fileName.c_str());
+		warning("Font::open failed to open '%s'", fileName.c_str());
 		return false;
 	}
 
@@ -58,7 +59,7 @@ bool Font::open(const Common::String &fileName, int screenWidth, int screenHeigh
 	_dataSize = stream->readUint32LE();
 	_data = new uint16[_dataSize];
 	if (!_data) {
-		debug("Font::open failed to allocate font buffer");
+		warning("Font::open failed to allocate font buffer");
 		return false;
 	}
 
@@ -69,9 +70,11 @@ bool Font::open(const Common::String &fileName, int screenWidth, int screenHeigh
 		_characters[i].height = stream->readUint32LE();
 		_characters[i].dataOffset = stream->readUint32LE();
 	}
+
 	for (int i = 0; i < _dataSize; i++) {
 		_data[i] = stream->readUint16LE();
 	}
+
 	return true;
 }
 
@@ -90,10 +93,7 @@ void Font::setSpacing(int spacing1, int spacing2) {
 }
 
 void Font::setColor(uint16 color) {
-	if (_data && _color != color) {
-		replaceColor(_color, color);
-		_color = color;
-	}
+	_color = color;
 }
 
 void Font::draw(const Common::String &text, Graphics::Surface &surface, int x, int y) const {
@@ -114,9 +114,7 @@ void Font::draw(const Common::String &text, Graphics::Surface &surface, int x, i
 }
 
 void Font::drawColor(const Common::String &text, Graphics::Surface &surface, int x, int y, uint16 color) {
-	if (_color != color) {
-		setColor(color);
-	}
+	setColor(color);
 	draw(text, surface, x, y);
 }
 
@@ -159,21 +157,10 @@ void Font::reset() {
 	_screenHeight = 0;
 	_spacing1 = 0;
 	_spacing2 = 0;
-	_color = 0x7FFF;
+	_color = screenPixelFormat().RGBToColor(255, 255, 255);
 	_intersperse = 0;
 
 	memset(_characters, 0, 256 * sizeof(Character));
-}
-
-void Font::replaceColor(uint16 oldColor, uint16 newColor) {
-	if (!_data || !_dataSize) {
-		return;
-	}
-	for (int i = 0; i < _dataSize; i++) {
-		if (_data[i] == oldColor) {
-			_data[i] = newColor;
-		}
-	}
 }
 
 void Font::drawCharacter(const uint8 character, Graphics::Surface &surface, int x, int y) const {
@@ -192,12 +179,30 @@ void Font::drawCharacter(const uint8 character, Graphics::Surface &surface, int 
 
 	int endY = height + y - 1;
 	int currentY = y;
+
+	// FIXME/TODO
+	// This width and height check were added as a temporary bug fix -- a sanity check which is only needed for the internal TAHOMA18.FON font.
+	// That font's glyph properties table is corrupted - the start of the file states that there are 0xF7 (=247) entries in the char properties table
+	// but that table get corrupted past the 176th entry. The image data glyph part of the FON file also only covers the 176 entries.
+	// So the following if clause-check will return here if the width and height values are unnaturally big.
+	// The bug only affects debug cases where all character glyph need to be displayed...
+	// ...or potential custom dialogue / translations that reference characters that are not within the range of ASCII values for the normal Latin characters.
+	if (width > 100 || height > 100) {
+		return;
+	}
+
 	while (currentY <= endY && currentY < _screenHeight) {
 		int currentX = x;
 		int endX = width + x - 1;
 		while (currentX <= endX && currentX < _screenWidth) {
-			if ((*srcPtr & 0x8000) == 0) {
-				*dstPtr = *srcPtr;
+			uint8 a, r, g, b;
+			gameDataPixelFormat().colorToARGB(*srcPtr, a, r, g, b);
+			if (!a) {
+				if (_color == _defaultColor) {
+					*dstPtr = surface.format.RGBToColor(r, g, b);
+				} else {
+					*dstPtr = _color;
+				}
 			}
 			dstPtr++;
 			srcPtr++;

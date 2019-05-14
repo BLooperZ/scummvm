@@ -23,12 +23,21 @@
 #ifndef PINK_DETECTION_TABLES_H
 #define PINK_DETECTION_TABLES_H
 
-#include "gui/EventRecorder.h"
-
 namespace Pink {
 
 static const ADGameDescription gameDescriptions[] = {
-	// Dutch, Version 1.0
+	// Danish, Version 1.0
+	{
+		"peril",
+		0,
+		AD_ENTRY1s("PPTP.ORB", "eae050c09d7f6bfbb3166d2c39957e31", 608976918),
+		Common::DA_DAN,
+		Common::kPlatformWindows,
+		ADGF_UNSTABLE | ADGF_DROPPLATFORM,
+		GUIO1(GUIO_NONE)
+	},
+
+	// Dutch
 	{
 		"peril",
 		0,
@@ -45,6 +54,17 @@ static const ADGameDescription gameDescriptions[] = {
 		0,
 		AD_ENTRY1s("PPTP.ORB", "223d0114d443904d8949263d512859da", 618203600),
 		Common::EN_ANY,
+		Common::kPlatformWindows,
+		ADGF_UNSTABLE | ADGF_DROPPLATFORM,
+		GUIO1(GUIO_NONE)
+	},
+
+	// English Great Britain
+	{
+		"peril",
+		0,
+		AD_ENTRY1s("PPTP.ORB", "1ee65e570adb37d446a3be657e4b2e9a", 619145676),
+		Common::EN_GRB,
 		Common::kPlatformWindows,
 		ADGF_UNSTABLE | ADGF_DROPPLATFORM,
 		GUIO1(GUIO_NONE)
@@ -182,6 +202,17 @@ static const ADGameDescription gameDescriptions[] = {
 		GUIO1(GUIO_NONE)
 	},
 
+	// German
+	{
+		"pokus",
+		0,
+		AD_ENTRY1s("HPP.orb", "a396a310e9d42ff43798ffdee2589a1a", 543000636),
+		Common::DE_DEU,
+		Common::kPlatformWindows,
+		ADGF_UNSTABLE | ADGF_DROPPLATFORM,
+		GUIO1(GUIO_NONE)
+	},
+
 	// Hebrew
 	{
 		"pokus",
@@ -243,6 +274,19 @@ static const ADGameDescription gameDescriptions[] = {
 		0,
 		AD_ENTRY1s("HPP.orb", "7b7909414d93f847ff0c023a06ae1f7e", 500103742),
 		Common::SE_SWE,
+		Common::kPlatformWindows,
+		ADGF_UNSTABLE | ADGF_DROPPLATFORM,
+		GUIO1(GUIO_NONE)
+	},
+
+	// Danish
+	// Version 1.0
+	// Contributed by sauravisus in Trac#10919
+	{
+		"pokus",
+		0,
+		AD_ENTRY1s("HPP.orb", "3428dda98c21c4b6cd798750016796ab", 513518023),
+		Common::DA_DAN,
 		Common::kPlatformWindows,
 		ADGF_UNSTABLE | ADGF_DROPPLATFORM,
 		GUIO1(GUIO_NONE)

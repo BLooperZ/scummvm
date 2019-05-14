@@ -21,13 +21,19 @@
  */
 
 #include "bladerunner/script/scene_script.h"
+#if BLADERUNNER_ORIGINAL_BUGS
+#else
+#include "bladerunner/items.h"
+#endif // BLADERUNNER_ORIGINAL_BUGS
 
 namespace BladeRunner {
 
 SceneScript::SceneScript(BladeRunnerEngine *vm)
 	: _vm(vm)
 	, _inScriptCounter(0)
-	, _currentScript(nullptr) {}
+	, _currentScript(nullptr)
+	, _mouseX(0)
+	, _mouseY(0) {}
 
 SceneScript::~SceneScript() {
 	delete _currentScript;
@@ -35,6 +41,7 @@ SceneScript::~SceneScript() {
 
 bool SceneScript::open(const Common::String &name) {
 	delete _currentScript;
+	_currentScript = nullptr;
 
 	if (name == "AR01") { _currentScript = new SceneScriptAR01(_vm); return true; }
 	if (name == "AR02") { _currentScript = new SceneScriptAR02(_vm); return true; }
@@ -173,23 +180,23 @@ bool SceneScript::mouseClick(int x, int y) {
 		return true;
 
 	_inScriptCounter++;
-	//MouseX = x;
-	//MouseY = y;
+	_mouseX = x;
+	_mouseY = y;
 	bool result = _currentScript->MouseClick(x, y);
 	_vm->_runningActorId = -1;
 	_inScriptCounter--;
-	//MouseX = -1;
-	//MouseY = -1;
+	_mouseX = -1;
+	_mouseY = -1;
 	return result;
 }
 
-bool SceneScript::clickedOn3DObject(const char *objectName, bool attack) {
+bool SceneScript::clickedOn3DObject(const char *objectName, bool combatMode) {
 	if (_inScriptCounter > 0) {
 		return true;
 	}
 
 	_inScriptCounter++;
-	bool result = _currentScript->ClickedOn3DObject(objectName, attack);
+	bool result = _currentScript->ClickedOn3DObject(objectName, combatMode);
 	_vm->_runningActorId = -1;
 	_inScriptCounter--;
 	return result;
@@ -207,13 +214,20 @@ bool SceneScript::clickedOnActor(int actorId) {
 	return result;
 }
 
-bool SceneScript::clickedOnItem(int itemId, bool a2) {
+bool SceneScript::clickedOnItem(int itemId, bool combatMode) {
 	if (_inScriptCounter > 0) {
 		return true;
 	}
+#if BLADERUNNER_ORIGINAL_BUGS
+#else
+	if (combatMode
+	     && (!_vm->_items->isTarget(itemId) )) { // bugfix for overlapping items, "shooting" the wrong one (untargetable) because the correct one is near enough
+		return true;
+	}
+#endif // BLADERUNNER_ORIGINAL_BUGS
 
 	_inScriptCounter++;
-	bool result = _currentScript->ClickedOnItem(itemId, a2);
+	bool result = _currentScript->ClickedOnItem(itemId, combatMode);
 	_vm->_runningActorId = -1;
 	_inScriptCounter--;
 	return result;
@@ -251,7 +265,6 @@ void SceneScript::sceneFrameAdvanced(int frame) {
 
 void SceneScript::actorChangedGoal(int actorId, int newGoal, int oldGoal, bool currentSet) {
 	_inScriptCounter++;
-	//TODO remove this check
 	if(_currentScript)
 		_currentScript->ActorChangedGoal(actorId, newGoal, oldGoal, currentSet);
 	_inScriptCounter--;

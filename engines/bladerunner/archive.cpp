@@ -34,13 +34,17 @@ MIXArchive::MIXArchive() {
 
 MIXArchive::~MIXArchive() {
 	if (_fd.isOpen()) {
-		debug("~MIXArchive: fd not closed: %s", _fd.getName());
+		warning("~MIXArchive: File not closed: %s", _fd.getName());
 	}
+}
+
+bool MIXArchive::exists(const Common::String &filename) {
+	return Common::File::exists(filename);
 }
 
 bool MIXArchive::open(const Common::String &filename) {
 	if (!_fd.open(filename)) {
-		debug("MIXArchive::open(): Could not open %s", filename.c_str());
+		warning("MIXArchive::open(): Can not open %s", filename.c_str());
 		return false;
 	}
 
@@ -54,10 +58,6 @@ bool MIXArchive::open(const Common::String &filename) {
 		_entries[i].hash   = _fd.readUint32LE();
 		_entries[i].offset = _fd.readUint32LE();
 		_entries[i].length = _fd.readUint32LE();
-
-#if BLADERUNNER_DEBUG_CONSOLE
-		debug("%08x %-12d %-12d", _entries[i].id, _entries[i].offset, _entries[i].length);
-#endif
 
 		// Verify that the entries are sorted by id. Note that id is signed.
 		if (i > 0) {

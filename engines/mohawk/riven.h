@@ -126,7 +126,7 @@ private:
 
 	int _menuSavedCard;
 	int _menuSavedStack;
-	Common::ScopedPtr<Graphics::Surface, Graphics::SurfaceDeleter> _menuTumbnail;
+	Common::ScopedPtr<Graphics::Surface, Graphics::SurfaceDeleter> _menuThumbnail;
 
 	bool _gameEnded;
 	uint32 _lastSaveTime;
@@ -153,6 +153,7 @@ public:
 	uint32 &getStackVar(uint32 index);
 
 	// Miscellaneous
+	Common::Array<uint16> getResourceIDList(uint32 type) const;
 	Common::SeekableReadStream *getExtrasResource(uint32 tag, uint16 id);
 	bool _activatedPLST;
 	bool _activatedSLST;
@@ -180,6 +181,7 @@ public:
 	// Main menu handling
 	void goToMainMenu();
 	void resumeFromMainMenu();
+	bool isInMainMenu() const;
 	bool isGameStarted() const;
 	void startNewGame();
 };

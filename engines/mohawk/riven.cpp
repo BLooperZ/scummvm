@@ -335,18 +335,15 @@ void MohawkEngine_Riven::processInput() {
 }
 
 void MohawkEngine_Riven::goToMainMenu() {
-	_menuSavedStack = _stack->getId();
-	_menuSavedCard = _card->getId();
-
-	// If we are already in menu, do not call again
-	if (_menuSavedStack == kStackAspit && _menuSavedCard == 1) {
-		_menuSavedStack = -1;
-		_menuSavedCard = -1;
+	if (isInMainMenu()) {
 		return;
 	}
 
-	_menuTumbnail.reset(new Graphics::Surface());
-	createThumbnailFromScreen(_menuTumbnail.get());
+	_menuSavedStack = _stack->getId();
+	_menuSavedCard = _card->getId();
+
+	_menuThumbnail.reset(new Graphics::Surface());
+	createThumbnailFromScreen(_menuThumbnail.get());
 
 	RivenCommand *go = new RivenStackChangeCommand(this, kStackAspit, 1, true, true);
 	RivenScriptPtr goScript = _scriptMan->createScriptWithCommand(go);
@@ -362,11 +359,16 @@ void MohawkEngine_Riven::resumeFromMainMenu() {
 
 	_menuSavedStack = -1;
 	_menuSavedCard = -1;
-	_menuTumbnail.reset();
+	_menuThumbnail.reset();
+}
+
+bool MohawkEngine_Riven::isInMainMenu() const {
+	static const uint16 kCardIdAspitAtrusJournal = 5;
+	return _stack->getId() == kStackAspit && _card->getId() < kCardIdAspitAtrusJournal;
 }
 
 bool MohawkEngine_Riven::isGameStarted() const {
-	return _stack->getId() != kStackAspit || _menuSavedStack != -1;
+	return !isInMainMenu() || _menuSavedStack != -1;
 }
 
 void MohawkEngine_Riven::pauseEngineIntern(bool pause) {
@@ -634,6 +636,17 @@ Common::SeekableReadStream *MohawkEngine_Riven::getExtrasResource(uint32 tag, ui
 	return _extrasFile->getResource(tag, id);
 }
 
+Common::Array<uint16> MohawkEngine_Riven::getResourceIDList(uint32 type) const {
+	Common::Array<uint16> ids;
+
+	for (uint i = 0; i < _mhk.size(); i++) {
+		ids.push_back(_mhk[i]->getResourceIDList(type));
+	}
+
+	return ids;
+}
+
+
 void MohawkEngine_Riven::delay(uint32 ms) {
 	uint32 startTime = _system->getMillis();
 
@@ -646,7 +659,7 @@ void MohawkEngine_Riven::startNewGame() {
 	// Clear all the state data
 	_menuSavedStack = -1;
 	_menuSavedCard = -1;
-	_menuTumbnail.reset();
+	_menuThumbnail.reset();
 
 	_vars.clear();
 	initVars();
@@ -692,7 +705,7 @@ Common::Error MohawkEngine_Riven::loadGameState(int slot) {
 	if (loadError.getCode() == Common::kNoError) {
 		_menuSavedStack = -1;
 		_menuSavedCard = -1;
-		_menuTumbnail.reset();
+		_menuThumbnail.reset();
 	}
 
 	return loadError;
@@ -719,7 +732,7 @@ Common::Error MohawkEngine_Riven::saveGameState(int slot, const Common::String &
 		_vars["CurrentCardID"] = _menuSavedCard;
 	}
 
-	const Graphics::Surface *thumbnail = _menuSavedStack != -1 ? _menuTumbnail.get() : nullptr;
+	const Graphics::Surface *thumbnail = _menuSavedStack != -1 ? _menuThumbnail.get() : nullptr;
 	Common::Error error = _saveLoad->saveGame(slot, desc, thumbnail, autosave);
 
 	if (_menuSavedStack != -1) {
@@ -742,7 +755,7 @@ void MohawkEngine_Riven::saveGameStateAndDisplayError(int slot, const Common::St
 }
 
 void MohawkEngine_Riven::tryAutoSaving() {
-	if (!canSaveGameStateCurrently() || !isGameStarted() || _gameEnded) {
+	if (!canSaveGameStateCurrently() || _gameEnded) {
 		return; // Can't save right now, try again on the next frame
 	}
 
@@ -795,7 +808,7 @@ bool MohawkEngine_Riven::canLoadGameStateCurrently() {
 }
 
 bool MohawkEngine_Riven::canSaveGameStateCurrently() {
-	return canLoadGameStateCurrently();
+	return canLoadGameStateCurrently() && isGameStarted();
 }
 
 bool MohawkEngine_Riven::hasGameEnded() const {

@@ -31,12 +31,14 @@
 #include "bladerunner/game_flags.h"
 #include "bladerunner/game_info.h"
 #include "bladerunner/mouse.h"
+#include "bladerunner/savefile.h"
 #include "bladerunner/scene.h"
 #include "bladerunner/shape.h"
 #include "bladerunner/script/kia_script.h"
 #include "bladerunner/settings.h"
 #include "bladerunner/slice_renderer.h"
 #include "bladerunner/text_resource.h"
+#include "bladerunner/time.h"
 #include "bladerunner/ui/kia_log.h"
 #include "bladerunner/ui/kia_section_base.h"
 #include "bladerunner/ui/kia_section_clues.h"
@@ -51,6 +53,7 @@
 #include "bladerunner/ui/kia_shapes.h"
 #include "bladerunner/ui/ui_image_picker.h"
 #include "bladerunner/vqa_player.h"
+#include "bladerunner/subtitles.h"
 
 #include "common/str.h"
 #include "common/keyboard.h"
@@ -66,18 +69,18 @@ KIA::KIA(BladeRunnerEngine *vm) {
 	_log = new KIALog(_vm);
 	_shapes = new KIAShapes(_vm);
 
-	_forceOpen = 0;
+	_forceOpen = false;
 	_currentSectionId = kKIASectionNone;
 	_lastSectionIdKIA = kKIASectionCrimes;
 	_lastSectionIdOptions = kKIASectionSettings;
-	_playerVqaTimeLast = _vm->getTotalPlayTime();
+	_playerVqaTimeLast = _vm->_time->currentSystem();
 	_playerVqaFrame = 0;
 	_playerVisualizerState = 0;
 	_playerPhotographId = -1;
 	_playerPhotograph = nullptr;
 	_playerSliceModelId = -1;
 	_playerSliceModelAngle = 0.0f;
-	_timeLast = _vm->getTotalPlayTime();
+	_timeLast = _vm->_time->currentSystem();
 	_playerActorDialogueQueuePosition = 0;
 	_playerActorDialogueQueueSize = 0;
 	_playerActorDialogueState = 0;
@@ -107,6 +110,11 @@ KIA::KIA(BladeRunnerEngine *vm) {
 }
 
 KIA::~KIA() {
+	if (isOpen()) {
+		unload();
+	}
+
+	_thumbnail.free();
 	delete _crimesSection;
 	delete _suspectsSection;
 	delete _cluesSection;
@@ -116,12 +124,25 @@ KIA::~KIA() {
 	delete _loadSection;
 	delete _diagnosticSection;
 	delete _pogoSection;
-
+	_playerImage.free();
 	delete _playerPhotograph;
 	delete _buttons;
 	delete _shapes;
 	delete _log;
 	delete _script;
+}
+
+void KIA::reset() {
+	_lastSectionIdKIA = kKIASectionCrimes;
+	_lastSectionIdOptions = kKIASectionSettings;
+	_playerImage.free();
+	_playerVqaFrame = 0;
+	_playerVisualizerState = 0;
+	_playerSliceModelAngle = 0.0f;
+
+	_crimesSection->reset();
+	_suspectsSection->reset();
+	_cluesSection->reset();
 }
 
 void KIA::openLastOpened() {
@@ -133,7 +154,7 @@ void KIA::open(KIASections sectionId) {
 		return;
 	}
 
-	if (!sectionId) {
+	if (sectionId == kKIASectionNone) {
 		unload();
 		return;
 	}
@@ -169,8 +190,8 @@ void KIA::open(KIASections sectionId) {
 			_mainVqaPlayer = nullptr;
 		}
 
-		_mainVqaPlayer = new VQAPlayer(_vm, &_vm->_surfaceBack);
-		_mainVqaPlayer->open(name);
+		_mainVqaPlayer = new VQAPlayer(_vm, &_vm->_surfaceBack, name);
+		_mainVqaPlayer->open();
 	}
 
 	if (_transitionId) {
@@ -206,14 +227,14 @@ void KIA::tick() {
 		return;
 	}
 
-	int timeNow = _vm->getTotalPlayTime();
+	int timeNow = _vm->_time->currentSystem();
 	int timeDiff = timeNow - _timeLast;
 
 	if (_playerActorDialogueQueueSize == _playerActorDialogueQueuePosition) {
 		_playerActorDialogueState = 0;
 	} else if (_playerActorDialogueState == 0) {
-		if (_playerSliceModelId == -1 && _playerPhotographId == -1) { //&& !this->_playerImage
-			_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(495), 70, 0, 0, 50, 0);
+		if (_playerSliceModelId == -1 && _playerPhotographId == -1 && _playerImage.getPixels() == nullptr) {
+			_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxBEEP16), 70, 0, 0, 50, 0);
 		}
 		_playerActorDialogueState = 1;
 	} else if (_playerActorDialogueState == 200) {
@@ -237,22 +258,21 @@ void KIA::tick() {
 	int timeDiffDiv48 = (timeNow - _playerVqaTimeLast) / 48;
 	if (timeDiffDiv48 > 0) {
 		_playerVqaTimeLast = timeNow;
-		if (_playerActorDialogueQueueSize == _playerActorDialogueQueuePosition || _playerSliceModelId != -1 || _playerPhotographId != -1) { // || this->_viewerImage
+		if (_playerActorDialogueQueueSize == _playerActorDialogueQueuePosition || _playerSliceModelId != -1 || _playerPhotographId != -1 || _playerImage.getPixels() != nullptr) {
 			if (_playerVisualizerState > 0) {
 				_playerVisualizerState = MAX(_playerVisualizerState - timeDiffDiv48, 0);
 			}
 		} else {
 			if (_playerVisualizerState < 2) {
 				_playerVisualizerState = MIN(_playerVisualizerState + timeDiffDiv48, 2);
-
 			}
 		}
 
-		if ( _playerSliceModelId != -1 || _playerPhotographId != -1 ) { // || _playerImage
+		if ( _playerSliceModelId != -1 || _playerPhotographId != -1 || _playerImage.getPixels() != nullptr) {
 			if (_playerVqaFrame < 8) {
 				int newVqaFrame  = MIN(timeDiffDiv48 + _playerVqaFrame, 8);
 				if (_playerVqaFrame <= 0 && newVqaFrame > 0) {
-					_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(497), 100, 70, 70, 50, 0);
+					_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxMECHAN1), 100, 70, 70, 50, 0);
 				}
 				_playerVqaFrame = newVqaFrame;
 			}
@@ -260,7 +280,7 @@ void KIA::tick() {
 			if (_playerVqaFrame > 0) {
 				int newVqaFrame = MAX(_playerVqaFrame - timeDiffDiv48, 0);
 				if (_playerVqaFrame >= 8 && newVqaFrame < 8) {
-					_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(496), 100, 70, 70, 50, 0);
+					_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxMECHAN1C), 100, 70, 70, 50, 0);
 				}
 				_playerVqaFrame = newVqaFrame;
 			}
@@ -290,12 +310,12 @@ void KIA::tick() {
 	}
 	if (_currentSectionId != kKIASectionQuit && _transitionId != 14) {
 		if (_vm->_settings->getDifficulty() > 0) {
-			_vm->_mainFont->drawColor(Common::String::format("%04d", _vm->_gameVars[kVariableChinyen]), _vm->_surfaceFront, 580, 341, 0x2991);
+			_vm->_mainFont->drawColor(Common::String::format("%04d", _vm->_gameVars[kVariableChinyen]), _vm->_surfaceFront, 580, 341, _vm->_surfaceFront.format.RGBToColor(80, 96, 136));
 		} else {
 			_shapes->get(39)->draw(_vm->_surfaceFront, 583, 342);
 		}
 	}
-	//TODO: implement frame loading after seek, then advanceFrame can be removed
+
 	_playerVqaPlayer->seekToFrame(_playerVqaFrame);
 	_playerVqaPlayer->update(true, true);
 
@@ -311,10 +331,10 @@ void KIA::tick() {
 			int width  = _playerPhotograph->getWidth();
 			int height  = _playerPhotograph->getHeight();
 			_playerPhotograph->draw(_vm->_surfaceFront, 590 - width / 2, 80 - height / 2);
+		} else if (_playerImage.getPixels() != nullptr) {
+			_vm->_surfaceFront.fillRect(Common::Rect(549, 49, 631, 111), _vm->_surfaceFront.format.RGBToColor(255, 255, 255));
+			_vm->_surfaceFront.copyRectToSurface(_playerImage.getPixels(), _playerImage.pitch, 550, 50, _playerImage.w,  _playerImage.h);
 		}
-		// else if (_playerImage) {
-		// ...
-		// }
 	}
 
 	if (_playerVisualizerState == 1) {
@@ -350,11 +370,13 @@ void KIA::tick() {
 			_shapes->get(47)->draw(_vm->_surfaceFront, 182, 446);
 		}
 	}
-	_vm->_mainFont->drawColor("1.00", _vm->_surfaceFront, 438, 471, 0x1CE7); // TODO: 1.01 for DVD version
+	_vm->_mainFont->drawColor("1.00", _vm->_surfaceFront, 438, 471, _vm->_surfaceFront.format.RGBToColor(56, 56, 56)); // 1.01 is DVD version, but only cd handling routines were changed, no game logic
 	if (!_transitionId) {
 		_buttons->drawTooltip(_vm->_surfaceFront, mouse.x, mouse.y);
 	}
 	_vm->_mouse->draw(_vm->_surfaceFront, mouse.x, mouse.y);
+
+	_vm->_subtitles->tick(_vm->_surfaceFront);
 
 	_vm->blitToScreen(_vm->_surfaceFront);
 	_vm->_system->delayMillis(10);
@@ -409,6 +431,15 @@ void KIA::handleMouseUp(int mouseX, int mouseY, bool mainButton) {
 		} else {
 			open(kKIASectionNone);
 		}
+	}
+}
+
+void KIA::handleMouseScroll(int mouseX, int mouseY, int direction) {
+	if (!isOpen()) {
+		return;
+	}
+	if (_currentSection) {
+		_currentSection->handleMouseScroll(direction);
 	}
 }
 
@@ -502,13 +533,12 @@ void KIA::handleKeyDown(const Common::KeyState &kbd) {
 
 void KIA::playerReset() {
 	if (_playerActorDialogueQueueSize != _playerActorDialogueQueuePosition) {
-		if (_playerActorDialogueQueueSize != _playerActorDialogueQueuePosition) {
-			int actorId = _playerActorDialogueQueue[_playerActorDialogueQueuePosition].actorId;
-			if (_vm->_actors[actorId]->isSpeeching()) {
-				_vm->_actors[actorId]->speechStop();
-			}
+		int actorId = _playerActorDialogueQueue[_playerActorDialogueQueuePosition].actorId;
+		if (_vm->_actors[actorId]->isSpeeching()) {
+			_vm->_actors[actorId]->speechStop();
 		}
 	}
+
 	_playerActorDialogueQueueSize = _playerActorDialogueQueuePosition;
 	_playerSliceModelId = -1;
 	if (_playerPhotographId != -1) {
@@ -516,8 +546,7 @@ void KIA::playerReset() {
 		_playerPhotograph = nullptr;
 	}
 	_playerPhotographId = -1;
-	// delete _playerImage;
-	// _playerImage = nullptr;
+	_playerImage.free();
 	_playerActorDialogueState = 0;
 }
 
@@ -532,7 +561,7 @@ void KIA::playActorDialogue(int actorId, int sentenceId) {
 
 void KIA::playSliceModel(int sliceModelId) {
 	if (_playerVqaFrame == 8) {
-		_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(502), 70, 0, 0, 50, 0);
+		_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxBEEP1), 70, 0, 0, 50, 0);
 	}
 	_playerSliceModelId = sliceModelId;
 }
@@ -543,11 +572,15 @@ void KIA::playPhotograph(int photographId) {
 		_playerPhotograph = nullptr;
 	}
 	if (_playerVqaFrame == 8) {
-		_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(502), 70, 0, 0, 50, 0);
+		_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxBEEP1), 70, 0, 0, 50, 0);
 	}
 	_playerPhotographId = photographId;
 	_playerPhotograph = new Shape(_vm);
 	_playerPhotograph->open("photos.shp", photographId);
+}
+
+void KIA::playImage(const Graphics::Surface &image) {
+	_playerImage.copyFrom(image);
 }
 
 void KIA::mouseDownCallback(int buttonId, void *callbackData) {
@@ -555,7 +588,7 @@ void KIA::mouseDownCallback(int buttonId, void *callbackData) {
 	switch (buttonId) {
 	case 0:
 	case 6:
-		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(503), 100, -65, -65, 50, 0);
+		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(kSfxBUTN4P), 100, -65, -65, 50, 0);
 		break;
 	case 1:
 	case 2:
@@ -570,13 +603,13 @@ void KIA::mouseDownCallback(int buttonId, void *callbackData) {
 	case 12:
 	case 13:
 	case 14:
-		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(505), 70, 0, 0, 50, 0);
+		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(kSfxBUTN5P), 70, 0, 0, 50, 0);
 		if (buttonId == 12){
-			self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(596), 70, 0, 0, 50, 0);
+			self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(kSfxSHUTDOWN), 70, 0, 0, 50, 0);
 		}
 		break;
 	case 15:
-		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(503), 70, 0, 0, 50, 0);
+		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(kSfxBUTN4P), 70, 0, 0, 50, 0);
 		break;
 	default:
 		break;
@@ -588,7 +621,7 @@ void KIA::mouseUpCallback(int buttonId, void *callbackData) {
 	switch (buttonId) {
 	case 0:
 	case 6:
-		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(504), 100, -65, -65, 50, 0);
+		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(kSfxBUTN4R), 100, -65, -65, 50, 0);
 		break;
 	case 1:
 	case 2:
@@ -603,10 +636,10 @@ void KIA::mouseUpCallback(int buttonId, void *callbackData) {
 	case 12:
 	case 13:
 	case 14:
-		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(506), 70, 0, 0, 50, 0);
+		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(kSfxBUTN5R), 70, 0, 0, 50, 0);
 		break;
 	case 15:
-		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(504), 100, 0, 0, 50, 0);
+		self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(kSfxBUTN4R), 100, 0, 0, 50, 0);
 		break;
 	default:
 		break;
@@ -621,14 +654,16 @@ void KIA::loopEnded(void *callbackData, int frame, int loopId) {
 }
 
 void KIA::init() {
+	_thumbnail = _vm->generateThumbnail();
+
 	if (!_vm->openArchive("MODE.MIX")) {
 		return;
 	}
 
 	playerReset();
 	_playerVqaFrame = 0;
-	_playerVqaTimeLast = _vm->getTotalPlayTime();
-	_timeLast = _vm->getTotalPlayTime();
+	_playerVqaTimeLast = _vm->_time->currentSystem();
+	_timeLast = _vm->_time->currentSystem();
 
 	if (_vm->_gameFlags->query(kFlagKIAPrivacyAddon) && !_vm->_gameFlags->query(kFlagKIAPrivacyAddonIntro)) {
 		_vm->_gameFlags->set(kFlagKIAPrivacyAddonIntro);
@@ -640,16 +675,18 @@ void KIA::init() {
 	_vm->_mouse->setCursor(0);
 	if (_playerVqaPlayer == nullptr) {
 
-		_playerVqaPlayer = new VQAPlayer(_vm, &_vm->_surfaceFront);
-		_playerVqaPlayer->open("kiaover.vqa");
+		_playerVqaPlayer = new VQAPlayer(_vm, &_vm->_surfaceFront, "kiaover.vqa");
+		_playerVqaPlayer->open();
 		_playerVqaPlayer->setLoop(0, -1, kLoopSetModeJustStart, nullptr, nullptr);
 	}
-	_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(501), 70, 0, 0, 50, 0);
+	_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxELECTRO1), 70, 0, 0, 50, 0);
 
-	// TODO: time->lock();
+	_vm->_time->pause();
 }
 
 void KIA::unload() {
+	_thumbnail.free();
+
 	if (!isOpen()) {
 		return;
 	}
@@ -682,9 +719,9 @@ void KIA::unload() {
 
 	_currentSectionId = kKIASectionNone;
 
-	// TODO: Unfreeze game time
+	_vm->_time->resume();
 
-	if (!_vm->_settings->getLoadingGame() && _vm->_gameIsRunning) {
+	if (!_vm->_settings->isLoadingGame() && _vm->_gameIsRunning) {
 		_vm->_scene->resume();
 	}
 }
@@ -1219,13 +1256,13 @@ void KIA::playTransitionSound(int transitionId) {
 	case 10:
 	case 11:
 	case 12:
-		_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(498), 100, 0, 0, 50, 0);
+		_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxPANEL1),  100, 0, 0, 50, 0);
 		break;
 	case 13:
-		_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(499), 100, 0, 0, 50, 0);
+		_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxPANEL2),  100, 0, 0, 50, 0);
 		break;
 	case 14:
-		_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(500), 100, 0, 0, 50, 0);
+		_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxPANOPEN), 100, 0, 0, 50, 0);
 		break;
 	}
 }

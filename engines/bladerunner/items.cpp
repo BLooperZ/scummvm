@@ -35,6 +35,10 @@ Items::Items(BladeRunnerEngine *vm) {
 }
 
 Items::~Items() {
+	reset();
+}
+
+void Items::reset() {
 	for (int i = _items.size() - 1; i >= 0; i--) {
 		delete _items.remove_at(i);
 	}
@@ -59,6 +63,13 @@ void Items::getWidthHeight(int itemId, int *width, int *height) const {
 	assert(itemIndex != -1);
 
 	_items[itemIndex]->getWidthHeight(width, height);
+}
+
+void Items::getAnimationId(int itemId, int *animationId) const {
+	int itemIndex = findItem(itemId);
+	assert(itemIndex != -1);
+
+	_items[itemIndex]->getAnimationId(animationId);
 }
 
 void Items::tick() {
@@ -164,7 +175,7 @@ bool Items::isPoliceMazeEnemy(int itemId) const {
 	if (itemIndex == -1) {
 		return false;
 	}
-	return _items[itemIndex]->isTarget();
+	return _items[itemIndex]->isPoliceMazeEnemy();
 }
 
 void Items::setPoliceMazeEnemy(int itemId, bool val) {

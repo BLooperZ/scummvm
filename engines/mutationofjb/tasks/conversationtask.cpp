@@ -25,7 +25,7 @@
 #include "mutationofjb/assets.h"
 #include "mutationofjb/game.h"
 #include "mutationofjb/gamedata.h"
-#include "mutationofjb/gui.h"
+#include "mutationofjb/gamescreen.h"
 #include "mutationofjb/script.h"
 #include "mutationofjb/tasks/saytask.h"
 #include "mutationofjb/tasks/sequentialtask.h"
@@ -39,10 +39,9 @@ void ConversationTask::start() {
 	setState(RUNNING);
 
 	Game &game = getTaskManager()->getGame();
-	ConversationWidget &widget = game.getGui().getConversationWidget();
-
+	game.getGameScreen().showConversationWidget(true);
+	ConversationWidget &widget = game.getGameScreen().getConversationWidget();
 	widget.setCallback(this);
-	widget.setVisible(true);
 
 	_currentGroupIndex = 0;
 
@@ -156,7 +155,7 @@ void ConversationTask::showChoicesOrPick() {
 	}
 
 	if (itemsWithValidQuestions.size() > 1) {
-		ConversationWidget &widget = game.getGui().getConversationWidget();
+		ConversationWidget &widget = game.getGameScreen().getConversationWidget();
 		const ConversationLineList &toSayList = game.getAssets().getToSayList();
 
 		for (Common::Array<uint32>::size_type i = 0; i < itemsWithValidQuestions.size() && i < ConversationWidget::CONVERSATION_MAX_CHOICES; ++i) {
@@ -219,9 +218,9 @@ void ConversationTask::finish() {
 	setState(FINISHED);
 
 	Game &game = getTaskManager()->getGame();
-	ConversationWidget &widget = game.getGui().getConversationWidget();
-	widget.setVisible(false);
-	game.getGui().markDirty(); // TODO: Handle automatically when changing visibility.
+	game.getGameScreen().showConversationWidget(false);
+	ConversationWidget &widget = game.getGameScreen().getConversationWidget();
+	widget.setCallback(nullptr);
 }
 
 void ConversationTask::startExtra() {

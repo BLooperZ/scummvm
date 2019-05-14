@@ -38,84 +38,98 @@ void AIScriptLuther::Initialize() {
 
 	Actor_Put_In_Set(kActorLuther, kSetUG16);
 	Actor_Set_At_XYZ(kActorLuther, 176.91f, -40.67f, 225.92f, 486);
-	Actor_Set_Goal_Number(kActorLuther, 400);
-	Actor_Set_Targetable(kActorLuther, 1);
+	Actor_Set_Goal_Number(kActorLuther, kGoalLutherDefault);
+	Actor_Set_Targetable(kActorLuther, true);
 }
 
 bool AIScriptLuther::Update() {
-	if (!Actor_Query_Is_In_Current_Set(kActorLuther)
-			|| Player_Query_Combat_Mode() != 1
-			|| Global_Variable_Query(29)
-			|| Game_Flag_Query(596)
-			|| Global_Variable_Query(kVariableChapter) != 4) {
-		if (Actor_Query_Goal_Number(kActorLuther) == 400 && Actor_Query_Goal_Number(kActorLuther) != 499) {
-			Actor_Set_Goal_Number(kActorLuther, 401);
-		} else if (Actor_Query_Goal_Number(kActorLuther) == 494) {
-			Actor_Set_Goal_Number(kActorLuther, 495);
-			ChangeAnimationMode(48);
-		} else if (Actor_Query_Goal_Number(kActorLuther) != 495 || Game_Flag_Query(587)) {
-			if (Actor_Query_Goal_Number(kActorLuther) != 497
-					|| Global_Variable_Query(29) >= 2
-					|| Game_Flag_Query(568)) {
-				if (Actor_Query_Goal_Number(kActorLuther) != 497
-						|| Global_Variable_Query(29) <= 1
-						|| Game_Flag_Query(568)) {
-					if (Actor_Query_Goal_Number(kActorLuther) == 498) {
-						Game_Flag_Set(595);
-						Actor_Set_Goal_Number(kActorLuther, 499);
-						Actor_Set_Targetable(kActorLuther, 0);
-					} else {
-						return false;
-					}
-				} else {
-					Actor_Set_Targetable(kActorLuther, 0);
-					Actor_Set_Goal_Number(kActorLuther, 498);
-					Actor_Set_Targetable(kActorLuther, 0);
-				}
-			} else {
-				Game_Flag_Set(568);
-				ChangeAnimationMode(50);
-				ChangeAnimationMode(48);
-				Actor_Set_Goal_Number(kActorLuther, 498);
-				Actor_Set_Targetable(kActorLuther, 0);
-				Scene_Loop_Set_Default(5);
-				Scene_Loop_Start_Special(2, 4, 1);
-				Ambient_Sounds_Play_Sound(559, 50, 0, 0, 99);
-				Ambient_Sounds_Remove_Looping_Sound(516, 1);
-			}
-		} else {
-			AI_Countdown_Timer_Reset(kActorLuther, 2);
-			AI_Countdown_Timer_Start(kActorLuther, 2, 5);
-			Actor_Set_Goal_Number(kActorLuther, 496);
-			Game_Flag_Set(587);
-		}
-	} else {
+	if ( Actor_Query_Is_In_Current_Set(kActorLuther)
+	 &&  Player_Query_Combat_Mode()
+	 &&  Global_Variable_Query(kVariableLutherLanceShot) == 0
+	 && !Game_Flag_Query(kFlagUG16PulledGun)
+	 &&  Global_Variable_Query(kVariableChapter) == 4
+	) {
 		Actor_Says(kActorMcCoy, 5720, 12);
 		Actor_Says(kActorLuther, 80, 13);
 		Actor_Says(kActorLance, 40, 12);
-		Game_Flag_Set(596);
+		Game_Flag_Set(kFlagUG16PulledGun);
+		return false;
+	}
+
+	if (Actor_Query_Goal_Number(kActorLuther) == kGoalLutherDefault
+	 && Actor_Query_Goal_Number(kActorLuther) != kGoalLutherDead
+	) {
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherMoveAround);
+		return false;
+	}
+
+	if (Actor_Query_Goal_Number(kActorLuther) == kGoalLutherShot) {
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherDyingStarted);
+		ChangeAnimationMode(kAnimationModeDie);
+		return false;
+	}
+
+	if ( Actor_Query_Goal_Number(kActorLuther) == kGoalLutherDyingStarted
+	 && !Game_Flag_Query(kFlagUG15LutherLanceStartedDying)
+	) {
+		AI_Countdown_Timer_Reset(kActorLuther, kActorTimerAIScriptCustomTask2);
+		AI_Countdown_Timer_Start(kActorLuther, kActorTimerAIScriptCustomTask2, 5);
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherDyingWait);
+		Game_Flag_Set(kFlagUG15LutherLanceStartedDying);
+		return false;
+	}
+
+	if ( Actor_Query_Goal_Number(kActorLuther) == kGoalLutherDyingCheck
+	 &&  Global_Variable_Query(kVariableLutherLanceShot) < 2
+	 && !Game_Flag_Query(kFlagUG16ComputerOff)
+	) {
+		Game_Flag_Set(kFlagUG16ComputerOff);
+		ChangeAnimationMode(50);
+		ChangeAnimationMode(kAnimationModeDie);
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherDie);
+		Actor_Set_Targetable(kActorLuther, false);
+		Scene_Loop_Set_Default(5); // UG16MainLoopNoComputerLight
+		Scene_Loop_Start_Special(kSceneLoopModeOnce, 4, true); // UG16SparkLoop
+		Ambient_Sounds_Play_Sound(kSfxCOMPDWN4, 50, 0, 0, 99);
+		Ambient_Sounds_Remove_Looping_Sound(kSfxELECLAB1, 1);
+		return false;
+	}
+
+	if ( Actor_Query_Goal_Number(kActorLuther) == kGoalLutherDyingCheck
+	 &&  Global_Variable_Query(kVariableLutherLanceShot) > 1
+	 && !Game_Flag_Query(kFlagUG16ComputerOff)
+	) {
+		Actor_Set_Targetable(kActorLuther, false);
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherDie);
+		Actor_Set_Targetable(kActorLuther, false);
+		return false;
+	}
+
+	if (Actor_Query_Goal_Number(kActorLuther) == kGoalLutherDie) {
+		Game_Flag_Set(kFlagLutherLanceAreDead);
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherDead);
+		Actor_Set_Targetable(kActorLuther, false);
+		return false;
 	}
 
 	return false;
 }
 
 void AIScriptLuther::TimerExpired(int timer) {
-	if (timer != 2)
-		return; //false;
-
-	AI_Countdown_Timer_Reset(kActorLuther, 2);
-	Actor_Set_Goal_Number(kActorLuther, 497);
-
-	return; //true;
+	if (timer == kActorTimerAIScriptCustomTask2) {
+		AI_Countdown_Timer_Reset(kActorLuther, kActorTimerAIScriptCustomTask2);
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherDyingCheck);
+		// return true;
+	}
+	// return false;
 }
 
 void AIScriptLuther::CompletedMovementTrack() {
-	if (Actor_Query_Goal_Number(kActorLuther) != 401)
-		return; //false;
-
-	Actor_Set_Goal_Number(kActorLuther, 402);
-
-	return; //true;
+	if (Actor_Query_Goal_Number(kActorLuther) == kGoalLutherMoveAround) {
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherMoveAroundRestart);
+		// return true;
+	}
+	//return false;
 }
 
 void AIScriptLuther::ReceivedClue(int clueId, int fromActorId) {
@@ -147,24 +161,56 @@ void AIScriptLuther::ShotAtAndMissed() {
 }
 
 bool AIScriptLuther::ShotAtAndHit() {
-	if (Actor_Query_Which_Set_In(kActorLuther) == 19) {
-		Actor_Set_Health(kActorLuther, 50, 50);
-	}
-	Global_Variable_Increment(29, 1);
-	Music_Stop(2);
-	if (Global_Variable_Query(29) <= 0) {
+#if BLADERUNNER_ORIGINAL_BUGS
+#else
+	if (Actor_Query_In_Set(kActorLuther, kSetKP07)) {
+		AI_Movement_Track_Flush(kActorLuther);
+		ChangeAnimationMode(kAnimationModeDie);
+		Actor_Retired_Here(kActorLuther, 6, 6, true, kActorMcCoy);
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherDie);
 		return false;
 	}
-	if (!Game_Flag_Query(560)) {
-		Game_Flag_Set(557);
+#endif
+	if (Actor_Query_Which_Set_In(kActorLuther) == kSetUG16) {
+		Actor_Set_Health(kActorLuther, 50, 50);
 	}
-	Actor_Set_Goal_Number(kActorLuther, 494);
 
-	return true;
+	Global_Variable_Increment(kVariableLutherLanceShot, 1);
+	Music_Stop(2);
+
+	if (Global_Variable_Query(kVariableLutherLanceShot) > 0) {
+		if (!Game_Flag_Query(kFlagLutherLanceIsReplicant)) {
+			Game_Flag_Set(kFlagNotUsed557);
+		}
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherShot);
+		return true;
+	}
+
+	return false;
 }
 
 void AIScriptLuther::Retired(int byActorId) {
-	Actor_Set_Goal_Number(kActorLuther, 599);
+	Actor_Set_Goal_Number(kActorLuther, kGoalLutherGone);
+#if BLADERUNNER_ORIGINAL_BUGS
+#else
+	if (Actor_Query_In_Set(kActorLuther, kSetKP07)) {
+		Global_Variable_Decrement(kVariableReplicantsSurvivorsAtMoonbus, 1);
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherGone);
+
+		if (Global_Variable_Query(kVariableReplicantsSurvivorsAtMoonbus) == 0) {
+			Player_Loses_Control();
+			Delay(2000);
+			Player_Set_Combat_Mode(false);
+			Loop_Actor_Walk_To_XYZ(kActorMcCoy, -12.0f, -41.58f, 72.0f, 0, true, false, false);
+			Ambient_Sounds_Remove_All_Non_Looping_Sounds(true);
+			Ambient_Sounds_Remove_All_Looping_Sounds(1);
+			Game_Flag_Set(kFlagKP07toKP06);
+			Game_Flag_Reset(kFlagMcCoyIsHelpingReplicants);
+			Set_Enter(kSetKP05_KP06, kSceneKP06);
+			return; //true;
+		}
+	}
+#endif // BLADERUNNER_ORIGINAL_BUGS
 }
 
 int AIScriptLuther::GetFriendlinessModifierIfGetsClue(int otherActorId, int clueId) {
@@ -173,7 +219,7 @@ int AIScriptLuther::GetFriendlinessModifierIfGetsClue(int otherActorId, int clue
 
 bool AIScriptLuther::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 	switch (newGoalNumber) {
-	case 401:
+	case kGoalLutherMoveAround:
 		AI_Movement_Track_Flush(kActorLuther);
 		AI_Movement_Track_Append(kActorLuther, 39, 20);
 		AI_Movement_Track_Append_With_Facing(kActorLuther, 368, 120, 486);
@@ -181,16 +227,16 @@ bool AIScriptLuther::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 		AI_Movement_Track_Repeat(kActorLuther);
 		break;
 
-	case 402:
-		Actor_Set_Goal_Number(kActorLuther, 401);
+	case kGoalLutherMoveAroundRestart:
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherMoveAround);
 		break;
 
-	case 403:
+	case kGoalLutherStop:
 		AI_Movement_Track_Flush(kActorLuther);
 		break;
 
-	case 499:
-		Actor_Set_Goal_Number(kActorLuther, 599);
+	case kGoalLutherDead:
+		Actor_Set_Goal_Number(kActorLuther, kGoalLutherGone);
 		break;
 	}
 
@@ -202,7 +248,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 	case 0:
 		*animation = 346;
 		_animationFrame++;
-		if (_animationFrame > Slice_Animation_Query_Number_Of_Frames(346) - 1) {
+		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
 			_animationFrame = 0;
 		}
 		break;
@@ -210,7 +256,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 	case 1:
 		*animation = 348;
 		_animationFrame++;
-		if (_animationFrame > Slice_Animation_Query_Number_Of_Frames(348) - 1) {
+		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
 			*animation = 346;
 			_animationFrame = 0;
 			_animationState = 0;
@@ -219,13 +265,15 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 		break;
 
 	case 2:
-		if (!_animationFrame && _flag) {
+		if (_animationFrame == 0
+		 && _flag
+		) {
 			*animation = 346;
 			_animationState = 0;
 		} else {
 			*animation = 349;
 			_animationFrame++;
-			if (_animationFrame > Slice_Animation_Query_Number_Of_Frames(349) - 1) {
+			if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
 				_animationFrame = 0;
 			}
 		}
@@ -234,7 +282,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 	case 3:
 		*animation = 350;
 		_animationFrame++;
-		if (_animationFrame > Slice_Animation_Query_Number_Of_Frames(350) - 1) {
+		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
 			_animationFrame = 0;
 			_animationState = 2;
 			*animation = 349;
@@ -244,7 +292,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 	case 4:
 		*animation = 351;
 		_animationFrame++;
-		if (_animationFrame > Slice_Animation_Query_Number_Of_Frames(351) - 1) {
+		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
 			_animationFrame = 0;
 			_animationState = 2;
 			*animation = 349;
@@ -254,7 +302,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 	case 5:
 		*animation = 352;
 		_animationFrame++;
-		if (_animationFrame > Slice_Animation_Query_Number_Of_Frames(352) - 1) {
+		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
 			_animationFrame = 0;
 			_animationState = 2;
 			*animation = 349;
@@ -264,7 +312,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 	case 6:
 		*animation = 353;
 		_animationFrame++;
-		if (_animationFrame > Slice_Animation_Query_Number_Of_Frames(353) - 1) {
+		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
 			_animationFrame = 0;
 			_animationState = 2;
 			*animation = 349;
@@ -274,7 +322,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 	case 7:
 		*animation = 354;
 		_animationFrame++;
-		if (_animationFrame > Slice_Animation_Query_Number_Of_Frames(354) - 1) {
+		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
 			_animationFrame = 0;
 			_animationState = 2;
 			*animation = 349;
@@ -284,7 +332,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 	case 8:
 		*animation = 355;
 		_animationFrame++;
-		if (_animationFrame > Slice_Animation_Query_Number_Of_Frames(355) - 1) {
+		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
 			_animationFrame = 0;
 			_animationState = 2;
 			*animation = 349;
@@ -294,7 +342,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 	case 9:
 		*animation = 356;
 		_animationFrame++;
-		if (_animationFrame > Slice_Animation_Query_Number_Of_Frames(356) - 1) {
+		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
 			*animation = 346;
 			_animationFrame = 0;
 			_animationState = 0;
@@ -305,7 +353,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 	case 10:
 		*animation = 357;
 		_animationFrame++;
-		if (_animationFrame > Slice_Animation_Query_Number_Of_Frames(357) - 1) {
+		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
 			Actor_Change_Animation_Mode(kActorLuther, 50);
 			*animation = 358;
 			_animationFrame = 0;
@@ -314,7 +362,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 
 	case 11:
 		*animation = 358;
-		if (_animationFrame < Slice_Animation_Query_Number_Of_Frames(358) - 1) {
+		if (_animationFrame < Slice_Animation_Query_Number_Of_Frames(*animation) - 1) {
 			_animationFrame++;
 		}
 		break;
@@ -322,15 +370,13 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 	case 12:
 		*animation = 359;
 		if (_animationFrame == 12) {
-			Ambient_Sounds_Play_Sound(557, 59, 0, 0, 20);
+			Ambient_Sounds_Play_Sound(kSfxHEADHIT2, 59, 0, 0, 20);
 		}
 		if (_animationFrame < Slice_Animation_Query_Number_Of_Frames(*animation) - 1) {
 			_animationFrame++;
 		}
 		break;
 
-	default:
-		break;
 	}
 	*frame = _animationFrame;
 
@@ -338,6 +384,7 @@ bool AIScriptLuther::UpdateAnimation(int *animation, int *frame) {
 }
 
 bool AIScriptLuther::ChangeAnimationMode(int mode) {
+	// these modes are differnent that other actors
 	switch (mode) {
 	case 0:
 		if ((unsigned int)(_animationState - 2) > 6) {
@@ -400,7 +447,7 @@ bool AIScriptLuther::ChangeAnimationMode(int mode) {
 		_animationFrame = 0;
 		break;
 
-	case 48:
+	case kAnimationModeDie:
 		_animationState = 12;
 		_animationFrame = 0;
 		break;

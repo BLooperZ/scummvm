@@ -38,6 +38,7 @@ class SaveFileReadStream;
 class SaveFileWriteStream;
 
 class PoliceMazeTargetTrack : ScriptBase {
+	friend class PoliceMaze;
 	uint32     _time;
 	bool       _isPresent;
 	int        _itemId;
@@ -92,7 +93,6 @@ public:
 	~PoliceMaze();
 
 	void tick();
-	void reset();
 	void clear(bool isLoadingGame);
 	void setPauseState(bool state);
 	void activate();

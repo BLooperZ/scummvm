@@ -69,6 +69,7 @@ class KIASectionCrimes : public KIASectionBase {
 	int   _mouseY;
 
 	int    _suspectPhotoShapeId;
+	int    _suspectPhotoNotUsed;
 	Shape *_suspectPhotoShape;
 
 public:
@@ -78,14 +79,17 @@ public:
 	KIASectionCrimes(BladeRunnerEngine *vm, ActorClues *clues);
 	~KIASectionCrimes();
 
-	void open();
-	void close();
+	void reset();
 
-	void draw(Graphics::Surface &surface);
+	void open() override;
+	void close() override;
 
-	void handleMouseMove(int mouseX, int mouseY);
-	void handleMouseDown(bool mainButton);
-	void handleMouseUp(bool mainButton);
+	void draw(Graphics::Surface &surface) override;
+
+	void handleMouseMove(int mouseX, int mouseY) override;
+	void handleMouseDown(bool mainButton) override;
+	void handleMouseUp(bool mainButton) override;
+	void handleMouseScroll(int direction) override;
 
 	void saveToLog();
 	void loadFromLog();

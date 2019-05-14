@@ -23,14 +23,20 @@
 #include "bladerunner/ui/spinner.h"
 
 #include "bladerunner/bladerunner.h"
+#include "bladerunner/actor.h"
+#include "bladerunner/audio_player.h"
+#include "bladerunner/ambient_sounds.h"
+#include "bladerunner/game_info.h"
+#include "bladerunner/subtitles.h"
 #include "bladerunner/game_constants.h"
 #include "bladerunner/mouse.h"
 #include "bladerunner/savefile.h"
 #include "bladerunner/scene.h"
 #include "bladerunner/shape.h"
 #include "bladerunner/text_resource.h"
-#include "bladerunner/vqa_player.h"
+#include "bladerunner/time.h"
 #include "bladerunner/ui/ui_image_picker.h"
+#include "bladerunner/vqa_player.h"
 
 #include "common/rect.h"
 #include "common/system.h"
@@ -64,6 +70,9 @@ bool Spinner::querySelectableDestinationFlag(int destination) const {
 }
 
 int Spinner::chooseDestination(int loopId, bool immediately) {
+	if (_vm->_cutContent) {
+		resetDescription();
+	}
 	_selectedDestination = 0;
 	if (!_vm->openArchive("MODE.MIX")) {
 		return 0;
@@ -74,19 +83,18 @@ int Spinner::chooseDestination(int loopId, bool immediately) {
 	} else {
 		_vm->playerLosesControl();
 		_vm->_scene->loopStartSpecial(kSceneLoopModeSpinner, loopId, immediately);
-		while (!_isOpen) {
+		while (_vm->_gameIsRunning && !_isOpen) {
 			_vm->gameTick();
 		}
 		_vm->playerGainsControl();
 	}
 
-	_vqaPlayer = new VQAPlayer(_vm, &_vm->_surfaceBack);
-	if (!_vqaPlayer->open("SPINNER.VQA")) {
+	_vqaPlayer = new VQAPlayer(_vm, &_vm->_surfaceBack, "SPINNER.VQA");
+	if (!_vqaPlayer->open()) {
 		return 0;
 	}
 
 	_vm->_mouse->setCursor(0);
-
 	// Determine which map we need to show to include the active destinations
 	uint8 mapmask = 0;
 	uint8 mapmaskv[kSpinnerDestinations] = { 1, 1, 1, 1, 1, 3, 3, 3, 7, 7 };
@@ -147,19 +155,32 @@ int Spinner::chooseDestination(int loopId, bool immediately) {
 		);
 	}
 
-	_imagePicker->activate(
-		nullptr,
-		nullptr,
-		nullptr,
-		mouseUpCallback,
-		this
-	);
+	if (_vm->_cutContent) {
+		_imagePicker->activate(
+			mouseInCallback,
+			mouseOutCallback,
+			mouseDownCallback,
+			mouseUpCallback,
+			this
+		);
+		_vm->_actors[kActorAnsweringMachine]->speechPlay(480, false);
+		_vm->_ambientSounds->addSound(kSfxSPINAMB2,  5, 30, 30,  45,    0,   0, -101, -101, 0, 0);
+	} else {
+		_imagePicker->activate(
+			nullptr,
+			nullptr,
+			nullptr,
+			mouseUpCallback,
+			this
+		);
+	}
 
-	// TODO: Freeze game time
+	_vm->_time->pause();
+
 	_selectedDestination = -1;
 	do {
 		_vm->gameTick();
-	} while (_selectedDestination == -1);
+	} while (_vm->_gameIsRunning && _selectedDestination == -1);
 
 	_imagePicker->deactivate();
 
@@ -176,15 +197,33 @@ int Spinner::chooseDestination(int loopId, bool immediately) {
 
 	_isOpen = false;
 
-	// TODO: Unfreeze game time
+	_vm->_time->resume();
 	_vm->_scene->resume();
 
+	if (_vm->_cutContent) {
+		_vm->_ambientSounds->removeNonLoopingSound(kSfxSPINAMB2, true);
+	}
 	return _selectedDestination;
 }
 
-void Spinner::mouseUpCallback(int image, void *self) {
-	if (image >= 0 && image < 10) {
-		((Spinner *)self)->setSelectedDestination(image);
+// cut content
+void Spinner::mouseInCallback(int destinationImage, void *self) {
+	((Spinner *)self)->destinationFocus(destinationImage);
+}
+
+// cut content
+void Spinner::mouseOutCallback(int, void *self) {
+	((Spinner *)self)->destinationFocus(-1);
+}
+
+// cut content
+void Spinner::mouseDownCallback(int, void *self) {
+	((Spinner *)self)->_vm->_audioPlayer->playAud(((Spinner *)self)->_vm->_gameInfo->getSfxTrack(kSfxSPNBEEP9), 100, 0, 0, 50, 0);
+}
+
+void Spinner::mouseUpCallback(int destinationImage, void *self) {
+	if (destinationImage >= 0 && destinationImage < 10) {
+		((Spinner *)self)->setSelectedDestination(destinationImage);
 	}
 }
 
@@ -207,7 +246,7 @@ int Spinner::handleMouseDown(int x, int y) {
 }
 
 void Spinner::tick() {
-	if (!_vm->_gameIsRunning) {
+	if (!_vm->_windowIsActive) {
 		return;
 	}
 
@@ -228,7 +267,13 @@ void Spinner::tick() {
 	_vm->_mouse->draw(_vm->_surfaceFront, p.x, p.y);
 	_imagePicker->drawTooltip(_vm->_surfaceFront, p.x, p.y);
 
+	if (_vm->_cutContent) {
+		_vm->_subtitles->tick(_vm->_surfaceFront);
+	}
 	_vm->blitToScreen(_vm->_surfaceFront);
+	if (_vm->_cutContent) {
+		tickDescription();
+	}
 	_vm->_system->delayMillis(10);
 }
 
@@ -245,6 +290,10 @@ void Spinner::reset() {
 	_destinations = nullptr;
 	_selectedDestination = -1;
 	_imagePicker = nullptr;
+
+	_actorId = -1;
+	_sentenceId = -1;
+	_timeSpeakDescription = 0;
 
 	for (int i = 0; i != (int)_shapes.size(); ++i) {
 		delete _shapes[i];
@@ -319,6 +368,75 @@ const Spinner::Destination *Spinner::getDestinationsNear() {
 		{ -1, Common::Rect(-1,-1,-1,-1) }
 	};
 	return destinations;
+}
+
+void Spinner::destinationFocus(int destinationImage) {
+	// TODO 590, 600 are "Third Sector", "Fourth Sector" maybe restore those too?
+	switch (destinationImage) {
+	case kSpinnerDestinationPoliceStation:
+		setupDescription(kActorAnsweringMachine, 500);
+		break;
+	case kSpinnerDestinationMcCoysApartment:
+		setupDescription(kActorAnsweringMachine, 510);
+		break;
+	case kSpinnerDestinationRuncitersAnimals:
+		setupDescription(kActorAnsweringMachine, 490);
+		break;
+	case kSpinnerDestinationChinatown:
+		setupDescription(kActorAnsweringMachine, 520);
+		break;
+	case kSpinnerDestinationAnimoidRow:
+		setupDescription(kActorAnsweringMachine, 550);
+		break;
+	case kSpinnerDestinationTyrellBuilding:
+		setupDescription(kActorAnsweringMachine, 560);
+		break;
+	case kSpinnerDestinationDNARow:
+		setupDescription(kActorAnsweringMachine, 530);
+		break;
+	case kSpinnerDestinationBradburyBuilding:
+		setupDescription(kActorAnsweringMachine, 540);
+		break;
+	case kSpinnerDestinationNightclubRow:
+		setupDescription(kActorAnsweringMachine, 570);
+		break;
+	case kSpinnerDestinationHysteriaHall:
+		setupDescription(kActorAnsweringMachine, 580);
+		break;
+	default:
+		resetDescription();
+		break;
+	}
+}
+
+// copied from elevator.cpp code
+void Spinner::setupDescription(int actorId, int sentenceId) {
+	_actorId = actorId;
+	_sentenceId = sentenceId;
+	_timeSpeakDescription = _vm->_time->current() + 600;
+}
+
+// copied from elevator.cpp code
+void Spinner::resetDescription() {
+	_actorId = -1;
+	_sentenceId = -1;
+	_timeSpeakDescription = 0;
+}
+
+// copied from elevator.cpp code
+void Spinner::tickDescription() {
+	int now = _vm->_time->current();
+	if (_actorId <= 0 || now < _timeSpeakDescription) {
+		return;
+	}
+
+	if (!_vm->_mouse->isDisabled()) {
+		// mouse can mouse when disab;ed so hover callbacks will work, while the cursor is invisible
+		// so postpone the speech until mouse is invisible again
+		_vm->_actors[_actorId]->speechPlay(_sentenceId, false);
+		_actorId = -1;
+		_sentenceId = -1;
+	}
 }
 
 } // End of namespace BladeRunner

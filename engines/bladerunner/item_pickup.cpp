@@ -27,7 +27,9 @@
 #include "bladerunner/game_info.h"
 #include "bladerunner/slice_animations.h"
 #include "bladerunner/slice_renderer.h"
+#include "bladerunner/time.h"
 #include "bladerunner/zbuffer.h"
+#include "bladerunner/game_constants.h"
 
 namespace BladeRunner {
 
@@ -53,10 +55,10 @@ void ItemPickup::setup(int animationId, int screenX, int screenY) {
 	_screenRect.top = _screenY - 40;
 	_screenRect.bottom = _screenY + 40;
 
-	int pan = (150 * _screenX - 48000) / 640;
-	_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(335), 80, pan, pan, 50, 0);
+	int pan = (75 * (2 * _screenX - 640)) / 640; // map [0..640] to [-75..75]
+	_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxGETITEM1), 80, pan, pan, 50, 0);
 
-	_timeLast = _vm->getTotalPlayTime();
+	_timeLast = _vm->_time->currentSystem();
 }
 
 void ItemPickup::reset() {
@@ -75,7 +77,7 @@ void ItemPickup::tick() {
 		return;
 	}
 
-	int timeNow = _vm->getTotalPlayTime();
+	int timeNow = _vm->_time->currentSystem();
 	int timeDiff = timeNow - _timeLast;
 	_timeLast = timeNow;
 	timeDiff = MIN(MIN(timeDiff, 67), _timeLeft);

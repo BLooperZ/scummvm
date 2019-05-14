@@ -25,6 +25,8 @@
 #include "bladerunner/audio_player.h"
 #include "bladerunner/bladerunner.h"
 #include "bladerunner/game_info.h"
+#include "bladerunner/time.h"
+#include "bladerunner/game_constants.h"
 #include "bladerunner/ui/kia.h"
 #include "bladerunner/ui/kia_shapes.h"
 
@@ -47,16 +49,17 @@ UICheckBox::UICheckBox(BladeRunnerEngine *vm, UIComponentCallback *valueChangedC
 		_frame = 0;
 	}
 
-	_timeLast = _vm->getTotalPlayTime();
+	_timeLast = _vm->_time->currentSystem();
 	_rect = rect;
 	_isChecked = isChecked;
 }
 
 
 void UICheckBox::draw(Graphics::Surface &surface) {
-	int shapeId;
 	if (_rect.right > _rect.left && _rect.bottom > _rect.top) {
-		uint timeNow = _vm->getTotalPlayTime();
+		int shapeId;
+
+		uint timeNow = _vm->_time->currentSystem();
 		if (timeNow - _timeLast > 67) {
 			int frameDelta = (timeNow - _timeLast) / 67u;
 			_timeLast = timeNow;
@@ -111,7 +114,7 @@ void UICheckBox::setChecked(bool isChecked) {
 void UICheckBox::handleMouseMove(int mouseX, int mouseY) {
 	if (_rect.contains(mouseX, mouseY)) {
 		if (!_hasFocus && _isEnabled && !_isPressed ) {
-			_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(508), 100, 0, 0, 50, 0);
+			_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxTEXT3), 100, 0, 0, 50, 0);
 		}
 		_hasFocus = true;
 	} else {
@@ -126,7 +129,7 @@ void UICheckBox::handleMouseDown(bool alternateButton) {
 			if (_valueChangedCallback) {
 				_valueChangedCallback(_callbackData, this);
 			}
-			_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(509), 100, 0, 0, 50, 0);
+			_vm->_audioPlayer->playAud(_vm->_gameInfo->getSfxTrack(kSfxBEEP10), 100, 0, 0, 50, 0);
 		} else {
 			_isPressed = true;
 		}

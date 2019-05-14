@@ -23,6 +23,12 @@
 #ifndef BLADERUNNER_DETECTION_TABLES_H
 #define BLADERUNNER_DETECTION_TABLES_H
 
+#include "engines/advancedDetector.h"
+
+#define GAMEOPTION_SITCOM GUIO_GAMEOPTIONS1
+#define GAMEOPTION_SHORTY GUIO_GAMEOPTIONS2
+#define GAMEOPTION_CUT_CONTENT GUIO_GAMEOPTIONS3
+
 namespace BladeRunner {
 
 static const ADGameDescription gameDescriptions[] = {
@@ -34,7 +40,7 @@ static const ADGameDescription gameDescriptions[] = {
 		Common::EN_ANY,
 		Common::kPlatformWindows,
 		ADGF_NO_FLAGS,
-		GUIO0()
+		GUIO3(GAMEOPTION_SITCOM, GAMEOPTION_SHORTY, GAMEOPTION_CUT_CONTENT)
 	},
 
 	// BladeRunner (German)
@@ -45,7 +51,7 @@ static const ADGameDescription gameDescriptions[] = {
 		Common::DE_DEU,
 		Common::kPlatformWindows,
 		ADGF_NO_FLAGS,
-		GUIO0()
+		GUIO3(GAMEOPTION_SITCOM, GAMEOPTION_SHORTY, GAMEOPTION_CUT_CONTENT)
 	},
 
 	// BladeRunner (French) - Bug #9722
@@ -56,7 +62,7 @@ static const ADGameDescription gameDescriptions[] = {
 		Common::FR_FRA,
 		Common::kPlatformWindows,
 		ADGF_NO_FLAGS,
-		GUIO0()
+		GUIO3(GAMEOPTION_SITCOM, GAMEOPTION_SHORTY, GAMEOPTION_CUT_CONTENT)
 	},
 
 	// BladeRunner (Italian)
@@ -67,7 +73,7 @@ static const ADGameDescription gameDescriptions[] = {
 		Common::IT_ITA,
 		Common::kPlatformWindows,
 		ADGF_NO_FLAGS,
-		GUIO0()
+		GUIO3(GAMEOPTION_SITCOM, GAMEOPTION_SHORTY, GAMEOPTION_CUT_CONTENT)
 	},
 
 	// BladeRunner (Russian)
@@ -78,8 +84,20 @@ static const ADGameDescription gameDescriptions[] = {
 		Common::RU_RUS,
 		Common::kPlatformWindows,
 		ADGF_NO_FLAGS,
-		GUIO0()
+		GUIO3(GAMEOPTION_SITCOM, GAMEOPTION_SHORTY, GAMEOPTION_CUT_CONTENT)
 	},
+
+	// BladeRunner (Russian - alternate version)
+	{
+		"bladerunner",
+		0,
+		AD_ENTRY1s("STARTUP.MIX", "bf42af841d9f4b643665013a348c81e0", 2483111),
+		Common::RU_RUS,
+		Common::kPlatformWindows,
+		ADGF_NO_FLAGS,
+		GUIO3(GAMEOPTION_SITCOM, GAMEOPTION_SHORTY, GAMEOPTION_CUT_CONTENT)
+	},
+
 
 	// BladeRunner (Spanish)
 	{
@@ -89,7 +107,7 @@ static const ADGameDescription gameDescriptions[] = {
 		Common::ES_ESP,
 		Common::kPlatformWindows,
 		ADGF_NO_FLAGS,
-		GUIO0()
+		GUIO3(GAMEOPTION_SITCOM, GAMEOPTION_SHORTY, GAMEOPTION_CUT_CONTENT)
 	},
 
 	AD_TABLE_END_MARKER

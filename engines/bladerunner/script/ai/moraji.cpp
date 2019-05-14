@@ -38,50 +38,55 @@ void AIScriptMoraji::Initialize() {
 	_var1 = 1;
 	_var2 = 0;
 
-	Actor_Set_Goal_Number(kActorMoraji, 0);
+	Actor_Set_Goal_Number(kActorMoraji, kGoalMorajiDefault);
 }
 
 bool AIScriptMoraji::Update() {
-	if (Actor_Query_Goal_Number(kActorMoraji) || Player_Query_Current_Scene() != 29 || Game_Flag_Query(269)) {
-		if (Actor_Query_Goal_Number(kActorMoraji) == 19) {
-			Actor_Says(kActorMoraji, 80, 13);
-			_animationState = 9;
-			_animationFrame = -1;
-			Actor_Set_Goal_Number(kActorMoraji, 18);
-		}
-		return false;
-	} else {
-		AI_Countdown_Timer_Reset(kActorMoraji, 2);
-		AI_Countdown_Timer_Start(kActorMoraji, 2, 30);
-		Game_Flag_Set(269);
+	if ( Actor_Query_Goal_Number(kActorMoraji) == kGoalMorajiDefault
+	 &&  Player_Query_Current_Scene() == kSceneDR05
+	 && !Game_Flag_Query(kFlagDR05BombActivated)
+	) {
+		AI_Countdown_Timer_Reset(kActorMoraji, kActorTimerAIScriptCustomTask2);
+		AI_Countdown_Timer_Start(kActorMoraji, kActorTimerAIScriptCustomTask2, 30);
+		Game_Flag_Set(kFlagDR05BombActivated);
 		return true;
 	}
 
+	if (Actor_Query_Goal_Number(kActorMoraji) == kGoalMorajiScream) {
+		Actor_Says(kActorMoraji, 80, 13);
+		_animationState = 9;
+		_animationFrame = -1;
+		Actor_Set_Goal_Number(kActorMoraji, kGoalMorajiGetUp);
+	}
+
+	return false;
 }
 
 void AIScriptMoraji::TimerExpired(int timer) {
-	if (timer != 2) {
-		return; //false;
+	if (timer == kActorTimerAIScriptCustomTask2) {
+		AI_Countdown_Timer_Reset(kActorMoraji, kActorTimerAIScriptCustomTask2);
+
+		if (Actor_Query_Goal_Number(kActorMoraji) != kGoalMorajiJump
+		 && Actor_Query_Goal_Number(kActorMoraji) != kGoalMorajiLayDown
+		 && Actor_Query_Goal_Number(kActorMoraji) != kGoalMorajiPerished
+		) {
+			Game_Flag_Set(kFlagDR05BombWillExplode);
+		}
+		return; //true;
 	}
 
-	AI_Countdown_Timer_Reset(kActorMoraji, 2);
-	if (Actor_Query_Goal_Number(kActorMoraji) != 20
-			&& Actor_Query_Goal_Number(kActorMoraji) != 21
-			&& Actor_Query_Goal_Number(kActorMoraji) != 99) {
-		Game_Flag_Set(271);
-	}
-	return; //true;
+	return; //false;
 }
 
 void AIScriptMoraji::CompletedMovementTrack() {
-	if (Actor_Query_Goal_Number(kActorMoraji) != 11)
-		return; //false
+	if (Actor_Query_Goal_Number(kActorMoraji) == kGoalMorajiRunOut) {
+		AI_Countdown_Timer_Reset(kActorMoraji, kActorTimerAIScriptCustomTask2);
+		Game_Flag_Set(kFlagDR05BombWillExplode);
+		_animationState = 3;
 
-	AI_Countdown_Timer_Reset(kActorMoraji, 2);
-	Game_Flag_Set(271);
-	_animationState = 3;
-
-	return; //true;
+		return; //true;
+	}
+	return; //false
 }
 
 void AIScriptMoraji::ReceivedClue(int clueId, int fromActorId) {
@@ -114,17 +119,16 @@ void AIScriptMoraji::ShotAtAndMissed() {
 
 bool AIScriptMoraji::ShotAtAndHit() {
 	if (Actor_Query_Goal_Number(kActorMoraji)) {
-		if (Actor_Query_Goal_Number(kActorMoraji) == 21) {
-			Game_Flag_Set(713);
-			Actor_Set_Goal_Number(kActorMoraji, 22);
+		if (Actor_Query_Goal_Number(kActorMoraji) == kGoalMorajiLayDown) {
+			Game_Flag_Set(kFlagDR04McCoyShotMoraji);
+			Actor_Set_Goal_Number(kActorMoraji, kGoalMorajiDie);
 			Actor_Set_Goal_Number(kActorOfficerGrayford, 101);
-
 			return true;
 		} else {
 			return false;
 		}
 	} else {
-		Actor_Set_Goal_Number(kActorMoraji, 5);
+		Actor_Set_Goal_Number(kActorMoraji, kGoalMorajiShot);
 		return true;
 	}
 }
@@ -139,24 +143,32 @@ int AIScriptMoraji::GetFriendlinessModifierIfGetsClue(int otherActorId, int clue
 
 bool AIScriptMoraji::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 	switch (newGoalNumber) {
-	case 0:
+	case kGoalMorajiDefault:
 		Actor_Put_In_Set(kActorMoraji, kSetDR05);
 		Actor_Set_At_XYZ(kActorMoraji, 50.0f, 0.30f, 35.0f, 414);
-		Actor_Set_Targetable(kActorMoraji, 1);
+		Actor_Set_Targetable(kActorMoraji, true);
 		return false;
-	case 5:
-		Actor_Set_Targetable(kActorMoraji, 0);
-		Sound_Play(4, 100, 0, 0, 50);
+
+	case kGoalMorajiShot:
+		// applies only when shot inside the Dermo Design Lab
+		Actor_Set_Targetable(kActorMoraji, false);
+#if BLADERUNNER_ORIGINAL_BUGS
+		Sound_Play(kSfxFEMHURT2, 100, 0, 0, 50);	// Original code has female scream here (FEMHURT2)
+#else
+		Sound_Play_Speech_Line(kActorMoraji, 9020, 50, 0, 50); // fix: Use Moraji's death SPCHSFX, also lower volume
+#endif // BLADERUNNER_ORIGINAL_BUGS
 		_animationState = 10;
 		_animationFrame = 0;
-		Actor_Retired_Here(kActorMoraji, 60, 16, 1, -1);
+		Actor_Retired_Here(kActorMoraji, 60, 16, true, -1);
 		return true;
-	case 10:
-		Actor_Set_Targetable(kActorMoraji, 0);
+
+	case kGoalMorajiFreed:
+		Actor_Set_Targetable(kActorMoraji, false);
 		_animationState = 8;
 		_animationFrame = 1;
 		return true;
-	case 11:
+
+	case kGoalMorajiRunOut:
 		_animationState = 3;
 		_animationFrame = 0;
 		AI_Movement_Track_Flush(kActorMoraji);
@@ -166,43 +178,53 @@ bool AIScriptMoraji::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 		AI_Movement_Track_Append_Run(kActorMoraji, 98, 0);
 		AI_Movement_Track_Repeat(kActorMoraji);
 		return true;
-	case 20:
+
+	case kGoalMorajiJump:
 		_animationState = 11;
 		return true;
-	case 21:
+
+	case kGoalMorajiLayDown:
 		Actor_Retired_Here(kActorMoraji, 60, 16, 0, -1);
-		Actor_Set_Targetable(kActorMoraji, 1);
+		Actor_Set_Targetable(kActorMoraji, true);
 		return true;
-	case 22:
+
+	case kGoalMorajiDie:
+		// Added check here to have Moraji death speech SFX
+		// when shot by McCoy outside the Dermo Design Lab
+		if (_vm->_cutContent && Game_Flag_Query(kFlagDR04McCoyShotMoraji)) {
+			// original code used no voice here
+			Sound_Play_Speech_Line(kActorMoraji, 9020, 50, 0, 50); // Use Moraji's death SPCHSFX, also lower volume
+		}
 		_animationFrame = -1;
 		_animationState = 13;
 		return true;
-	case 23:
-		Actor_Set_Targetable(kActorMoraji, 0);
+
+	case kGoalMorajiDead:
+		Actor_Set_Targetable(kActorMoraji, false);
 		_animationState = 14;
 		Actor_Retired_Here(kActorMoraji, 60, 16, 1, -1);
 		return true;
 		break;
-	case 30:
-		if (Player_Query_Current_Scene() == 29) {
-			Game_Flag_Set(515);
-			Set_Enter(kSetDR01_DR02_DR04, kSetCT05);
+
+	case kGoalMorajiChooseFate:
+		if (Player_Query_Current_Scene() == kSceneDR05) {
+			Game_Flag_Set(kFlagDR05ViewExplosion);
+			Set_Enter(kSetDR01_DR02_DR04, kSceneDR04);
 		} else {
 			if (Actor_Query_In_Set(kActorMoraji, kSetDR05)) {
-				Actor_Set_Goal_Number(kActorMoraji, 99);
+				Actor_Set_Goal_Number(kActorMoraji, kGoalMorajiPerished);
 			} else {
-				Actor_Set_Goal_Number(kActorMoraji, 20);
+				Actor_Set_Goal_Number(kActorMoraji, kGoalMorajiJump);
 			}
-			Game_Flag_Set(266);
+			Game_Flag_Set(kFlagDR05JustExploded);
 		}
 		return true;
-	case 99:
+
+	case kGoalMorajiPerished:
 		AI_Movement_Track_Flush(kActorMoraji);
 		AI_Movement_Track_Append(kActorMoraji, 41, 0);
 		AI_Movement_Track_Repeat(kActorMoraji);
 		return true;
-	default:
-		break;
 	}
 
 	return false;
@@ -216,7 +238,7 @@ bool AIScriptMoraji::UpdateAnimation(int *animation, int *frame) {
 			_var2--;
 		} else {
 			_animationFrame += _var1;
-			if (!Random_Query(0, 10)) {
+			if (Random_Query(0, 10) == 0) {
 				_var1 = -_var1;
 			}
 			if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
@@ -288,10 +310,10 @@ bool AIScriptMoraji::UpdateAnimation(int *animation, int *frame) {
 			_animationFrame = 0;
 			_animationState = 0;
 			*animation = 733;
-			Actor_Set_Goal_Number(kActorMoraji, 19);
+			Actor_Set_Goal_Number(kActorMoraji, kGoalMorajiScream);
 		}
 		if (_animationFrame == 6) {
-			Ambient_Sounds_Play_Sound(488, 69, 0, 0, 20);
+			Ambient_Sounds_Play_Sound(kSfxCHAINBRK, 69, 0, 0, 20);
 		}
 		break;
 
@@ -302,7 +324,7 @@ bool AIScriptMoraji::UpdateAnimation(int *animation, int *frame) {
 			_animationFrame = 0;
 			_animationState = 3;
 			*animation = 732;
-			Actor_Set_Goal_Number(kActorMoraji, 11);
+			Actor_Set_Goal_Number(kActorMoraji, kGoalMorajiRunOut);
 		}
 		break;
 
@@ -317,7 +339,7 @@ bool AIScriptMoraji::UpdateAnimation(int *animation, int *frame) {
 		*animation = 739;
 		_animationFrame++;
 		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(739)) {
-			Actor_Set_Goal_Number(kActorMoraji, 21);
+			Actor_Set_Goal_Number(kActorMoraji, kGoalMorajiLayDown);
 			_animationFrame = 0;
 			_animationState = 12;
 			*animation = 740;
@@ -348,7 +370,7 @@ bool AIScriptMoraji::UpdateAnimation(int *animation, int *frame) {
 		_animationFrame++;
 		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(741) - 1) {
 			_animationFrame = Slice_Animation_Query_Number_Of_Frames(*animation) - 1;
-			Actor_Set_Goal_Number(kActorMoraji, 23);
+			Actor_Set_Goal_Number(kActorMoraji, kGoalMorajiDead);
 		}
 		break;
 
@@ -367,67 +389,67 @@ bool AIScriptMoraji::UpdateAnimation(int *animation, int *frame) {
 
 bool AIScriptMoraji::ChangeAnimationMode(int mode) {
 	switch (mode) {
-	case 0:
-		if (_animationState != 12 && Actor_Query_Goal_Number(kActorMoraji) != 11) {
+	case kAnimationModeIdle:
+		if (_animationState != 12
+		 && Actor_Query_Goal_Number(kActorMoraji) != 11
+		) {
 			_animationState = 0;
 			_animationFrame = 0;
 		}
-		return 1;
+		break;
 
-	case 1:
+	case kAnimationModeWalk:
 		_animationState = 2;
 		_animationFrame = 0;
-		return 1;
+		break;
 
-	case 2:
-		if (_animationState) {
-			if (_animationState != 3 || _animationState > 3) {
-				_animationState = 3;
-				_animationFrame = 0;
-			}
-		} else {
+	case kAnimationModeRun:
+		if (_animationState == 0) {
 			_animationState = 1;
 			_animationStateNext = 3;
 			_animationNext = 732;
+		} else if (_animationState != 3) {
+			_animationState = 3;
+			_animationFrame = 0;
 		}
 		break;
 
 	case 3:
 		if (_animationState != 12) {
-			if (_animationState) {
-				_animationState = 5;
-				_animationFrame = 0;
-			} else {
+			if (_animationState == 0) {
 				_animationState = 1;
 				_animationStateNext = 5;
 				_animationNext = 734;
+			} else {
+				_animationState = 5;
+				_animationFrame = 0;
 			}
 		}
 		break;
 
 	case 12:
-		if (_animationState) {
-			_animationState = 6;
-			_animationFrame = 0;
-		} else {
+		if (_animationState == 0) {
 			_animationState = 1;
 			_animationStateNext = 6;
 			_animationNext = 735;
+		} else {
+			_animationState = 6;
+			_animationFrame = 0;
 		}
 		break;
 
 	case 13:
-		if (_animationState) {
-			_animationState = 7;
-			_animationFrame = 0;
-		} else {
+		if (_animationState == 0) {
 			_animationState = 1;
 			_animationStateNext = 7;
 			_animationNext = 736;
+		} else {
+			_animationState = 7;
+			_animationFrame = 0;
 		}
 		break;
 
-	case 48:
+	case kAnimationModeDie:
 		_animationState = 13;
 		_animationFrame = -1;
 		break;
@@ -452,7 +474,7 @@ void AIScriptMoraji::SetAnimationState(int animationState, int animationFrame, i
 
 bool AIScriptMoraji::ReachedMovementTrackWaypoint(int waypointId) {
 	if (waypointId == 96)
-		AI_Countdown_Timer_Reset(kActorMoraji, 2);
+		AI_Countdown_Timer_Reset(kActorMoraji, kActorTimerAIScriptCustomTask2);
 
 	return true;
 }

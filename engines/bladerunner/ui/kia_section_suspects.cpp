@@ -86,6 +86,7 @@ KIASectionSuspects::KIASectionSuspects(BladeRunnerEngine *vm, ActorClues *clues)
 
 	_suspectSelected = -1;
 	_suspectPhotoShapeId = -1;
+	_suspectPhotoNotUsed = -1;
 	_suspectPhotoShape = nullptr;
 	_suspectsFoundCount = 0;
 	_suspectsFound.resize(_vm->_gameInfo->getSuspectCount());
@@ -106,6 +107,22 @@ KIASectionSuspects::~KIASectionSuspects() {
 	delete _whereaboutsCheckBox;
 	delete _buttons;
 	delete _uiContainer;
+}
+
+void KIASectionSuspects::reset() {
+	_acquiredClueCount = 0;
+	_suspectsFoundCount = 0;
+	_mouseX = 0;
+	_mouseY = 0;
+	_suspectSelected = -1;
+	_crimeSelected = -1;
+	_suspectPhotoShapeId = -1;
+	_suspectPhotoNotUsed = -1;
+	_whereaboutsFilter  = true;
+	_MOFilter = true;
+	_replicantFilter = true;
+	_nonReplicantFilter = true;
+	_othersFilter = true;
 }
 
 void KIASectionSuspects::open() {
@@ -158,7 +175,7 @@ void KIASectionSuspects::draw(Graphics::Surface &surface) {
 	}
 	if (_suspectPhotoShapeId == 14 || _suspectPhotoShapeId == 13) {
 		text = _vm->_textKIA->getText(49);
-		_vm->_mainFont->drawColor(text, surface, 190 - _vm->_mainFont->getTextWidth(text) / 2, 201, 0x7FFF);
+		_vm->_mainFont->drawColor(text, surface, 190 - _vm->_mainFont->getTextWidth(text) / 2, 201, surface.format.RGBToColor(255, 255, 255));
 	}
 
 	_whereaboutsCheckBox->setChecked(_whereaboutsFilter);
@@ -169,23 +186,22 @@ void KIASectionSuspects::draw(Graphics::Surface &surface) {
 
 	_uiContainer->draw(surface);
 
-
-	_vm->_mainFont->drawColor(_vm->_textKIA->getText(0),  surface, 300, 162, 0x77DF);
-	_vm->_mainFont->drawColor(_vm->_textKIA->getText(46), surface, 142, 248, 0x77DF);
-	_vm->_mainFont->drawColor(_vm->_textKIA->getText(47), surface, 142, 308, 0x77DF);
-	_vm->_mainFont->drawColor(_vm->_textKIA->getText(14), surface, 154, 319, 0x25B3);
-	_vm->_mainFont->drawColor(_vm->_textKIA->getText(15), surface, 154, 329, 0x31F7);
-	_vm->_mainFont->drawColor(_vm->_textKIA->getText(16), surface, 154, 339, 0x3A5B);
-	_vm->_mainFont->drawColor(_vm->_textKIA->getText(17), surface, 154, 349, 0x31F7);
-	_vm->_mainFont->drawColor(_vm->_textKIA->getText(48), surface, 154, 359, 0x25B3);
+	_vm->_mainFont->drawColor(_vm->_textKIA->getText(0),  surface, 300, 162, surface.format.RGBToColor(232, 240, 248));
+	_vm->_mainFont->drawColor(_vm->_textKIA->getText(46), surface, 142, 248, surface.format.RGBToColor(232, 240, 248));
+	_vm->_mainFont->drawColor(_vm->_textKIA->getText(47), surface, 142, 308, surface.format.RGBToColor(232, 240, 248));
+	_vm->_mainFont->drawColor(_vm->_textKIA->getText(14), surface, 154, 319, surface.format.RGBToColor(72, 104, 152));
+	_vm->_mainFont->drawColor(_vm->_textKIA->getText(15), surface, 154, 329, surface.format.RGBToColor(96, 120, 184));
+	_vm->_mainFont->drawColor(_vm->_textKIA->getText(16), surface, 154, 339, surface.format.RGBToColor(112, 144, 216));
+	_vm->_mainFont->drawColor(_vm->_textKIA->getText(17), surface, 154, 349, surface.format.RGBToColor(96, 120, 184));
+	_vm->_mainFont->drawColor(_vm->_textKIA->getText(48), surface, 154, 359, surface.format.RGBToColor(72, 104, 152));
 
 
 	surface.fillRect(Common::Rect(120, 134, 250, 145), 0);
-	surface.hLine(120, 133, 250, 0x18A5);
-	surface.hLine(120, 146, 250, 0x2D4C);
-	surface.vLine(119, 134, 145, 0x18A5);
-	surface.vLine(251, 134, 145, 0x2D4C);
-	surface.hLine(251, 146, 251, 0x2509);
+	surface.hLine(120, 133, 250, surface.format.RGBToColor(48, 40, 40));
+	surface.hLine(120, 146, 250, surface.format.RGBToColor(88, 80, 96));
+	surface.vLine(119, 134, 145, surface.format.RGBToColor(48, 40, 40));
+	surface.vLine(251, 134, 145, surface.format.RGBToColor(88, 80, 96));
+	surface.hLine(251, 146, 251, surface.format.RGBToColor(72, 64, 72));
 
 	char generatedText[64];
 	if (_suspectSelected == -1) {
@@ -203,7 +219,7 @@ void KIASectionSuspects::draw(Graphics::Surface &surface) {
 		}
 	}
 
-	_vm->_mainFont->drawColor(text, surface, 185 - _vm->_mainFont->getTextWidth(text) / 2, 136, 0x46BF);
+	_vm->_mainFont->drawColor(text, surface, 185 - _vm->_mainFont->getTextWidth(text) / 2, 136, surface.format.RGBToColor(136, 168, 248));
 
 	_buttons->draw(surface);
 	_buttons->drawTooltip(surface, _mouseX, _mouseY);
@@ -228,6 +244,10 @@ void KIASectionSuspects::handleMouseUp(bool mainButton) {
 		_buttons->handleMouseAction(_mouseX, _mouseY, false, true, false);
 	}
 	_uiContainer->handleMouseUp(!mainButton);
+}
+
+void KIASectionSuspects::handleMouseScroll(int direction) {
+	_uiContainer->handleMouseScroll(direction);
 }
 
 void KIASectionSuspects::saveToLog() {
@@ -297,7 +317,7 @@ void KIASectionSuspects::scrollBoxCallback(void *callbackData, void *source, int
 	if (source == self->_cluesScrollBox && lineData >= 0) {
 		if (mouseButton) {
 			if (self->_vm->_gameFlags->query(kFlagKIAPrivacyAddon)) {
-				self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(511), 70, 0, 0, 50, 0);
+				self->_vm->_audioPlayer->playAud(self->_vm->_gameInfo->getSfxTrack(kSfxBEEP15), 70, 0, 0, 50, 0);
 
 				if (self->_clues->isPrivate(lineData)) {
 					self->_clues->setPrivate(lineData, false);
@@ -479,18 +499,20 @@ void KIASectionSuspects::updateSuspectPhoto() {
 	SuspectDatabaseEntry *suspect = _vm->_suspectsDatabase->get(_suspectSelected);
 
 	_suspectPhotoShapeId = -1;
+	_suspectPhotoNotUsed = -1;
 	int photoCluesCount = suspect->getPhotoCount();
 	if (photoCluesCount > 0) {
 		for (int i = 0 ; i < photoCluesCount; i++) {
-			//TODO: weird stuff going on here... it's using index instead id, also some field is used but its always -1
+			//TODO: weird stuff going on here... original game is using internal clue index instead id
 			if (_clues->isAcquired(suspect->getPhotoClueId(i))) {
 				_suspectPhotoShapeId = suspect->getPhotoShapeId(i);
+				_suspectPhotoNotUsed = suspect->getPhotoNotUsed(i);
 				break;
 			}
 		}
 	}
 
-	if (_suspectPhotoShapeId == -1) {
+	if (_suspectPhotoShapeId == -1 && _suspectPhotoNotUsed == -1) {
 		if (suspect->getSex()) {
 			_suspectPhotoShapeId = 14;
 		} else {

@@ -73,6 +73,13 @@ Settings::Settings(BladeRunnerEngine *vm) {
 	_learyMode = false;
 }
 
+void Settings::reset() {
+	_ammoType = 0;
+	_ammoAmounts[0] = 1;
+	_ammoAmounts[1] = 0;
+	_ammoAmounts[2] = 0;
+}
+
 bool Settings::openNewScene() {
 	if (_newSet == -1) {
 		assert(_newScene == -1);
@@ -108,8 +115,9 @@ bool Settings::openNewScene() {
 			return false;
 		}
 		_chapter = newChapter;
-		if (_startingGame)
+		if (_startingGame) {
 			_startingGame = false;
+		}
 	}
 
 	if (!_vm->_scene->open(newSet, newScene, _loadingGame)) {
@@ -138,6 +146,10 @@ bool Settings::openNewScene() {
 
 	_loadingGame = false;
 	return true;
+}
+
+int Settings::getAmmoTypesCount() {
+	return kAmmoTypesCount;
 }
 
 int Settings::getAmmoType() const {
@@ -184,6 +196,10 @@ int Settings::getDifficulty() const {
 	return _difficulty;
 }
 
+void Settings::setDifficulty(int difficulty) {
+	_difficulty = difficulty;
+}
+
 int Settings::getPlayerAgenda() const {
 	return _playerAgenda;
 }
@@ -208,7 +224,7 @@ void Settings::save(SaveFileWriteStream &f) {
 	f.writeInt(_unk0);
 	f.writeInt(_difficulty);
 	f.writeInt(_ammoType);
-	for (int i = 0; i != 3; ++i) {
+	for (int i = 0; i != kAmmoTypesCount; ++i) {
 		f.writeInt(_ammoAmounts[i]);
 	}
 }
@@ -221,7 +237,7 @@ void Settings::load(SaveFileReadStream &f) {
 	_unk0 = f.readInt();
 	_difficulty = f.readInt();
 	_ammoType = f.readInt();
-	for (int i = 0; i != 3; ++i) {
+	for (int i = 0; i != kAmmoTypesCount; ++i) {
 		_ammoAmounts[i] = f.readInt();
 	}
 }

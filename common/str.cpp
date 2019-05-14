@@ -25,10 +25,36 @@
 #include "common/memorypool.h"
 #include "common/str.h"
 #include "common/util.h"
+#include "common/mutex.h"
 
 namespace Common {
 
 MemoryPool *g_refCountPool = nullptr; // FIXME: This is never freed right now
+MutexRef g_refCountPoolMutex = nullptr;
+
+void lockMemoryPoolMutex() {
+	// The Mutex class can only be used once g_system is set and initialized,
+	// but we may use the String class earlier than that (it is for example
+	// used in the OSystem_POSIX constructor). However in those early stages
+	// we can hope we don't have multiple threads either.
+	if (!g_system || !g_system->backendInitialized())
+		return;
+	if (!g_refCountPoolMutex)
+		g_refCountPoolMutex = g_system->createMutex();
+	g_system->lockMutex(g_refCountPoolMutex);
+}
+
+void unlockMemoryPoolMutex() {
+	if (g_refCountPoolMutex)
+		g_system->unlockMutex(g_refCountPoolMutex);
+}
+
+void String::releaseMemoryPoolMutex() {
+	if (g_refCountPoolMutex){
+		g_system->deleteMutex(g_refCountPoolMutex);
+		g_refCountPoolMutex = nullptr;
+	}
+}
 
 static uint32 computeCapacity(uint32 len) {
 	// By default, for the capacity we use the next multiple of 32
@@ -173,12 +199,14 @@ void String::ensureCapacity(uint32 new_size, bool keep_old) {
 void String::incRefCount() const {
 	assert(!isStorageIntern());
 	if (_extern._refCount == nullptr) {
+		lockMemoryPoolMutex();
 		if (g_refCountPool == nullptr) {
 			g_refCountPool = new MemoryPool(sizeof(int));
 			assert(g_refCountPool);
 		}
 
 		_extern._refCount = (int *)g_refCountPool->allocChunk();
+		unlockMemoryPoolMutex();
 		*_extern._refCount = 2;
 	} else {
 		++(*_extern._refCount);
@@ -196,8 +224,10 @@ void String::decRefCount(int *oldRefCount) {
 		// The ref count reached zero, so we free the string storage
 		// and the ref count storage.
 		if (oldRefCount) {
+			lockMemoryPoolMutex();
 			assert(g_refCountPool);
 			g_refCountPool->freeChunk(oldRefCount);
+			unlockMemoryPoolMutex();
 		}
 		delete[] _str;
 
@@ -854,6 +884,7 @@ bool matchString(const char *str, const char *pat, bool ignoreCase, bool pathMod
 
 	const char *p = nullptr;
 	const char *q = nullptr;
+	bool escaped = false;
 
 	for (;;) {
 		if (pathMode && *str == '/') {
@@ -863,6 +894,7 @@ bool matchString(const char *str, const char *pat, bool ignoreCase, bool pathMod
 				return false;
 		}
 
+		const char curPat = *pat;
 		switch (*pat) {
 		case '*':
 			if (*str) {
@@ -882,12 +914,23 @@ bool matchString(const char *str, const char *pat, bool ignoreCase, bool pathMod
 				return true;
 			break;
 
+		case '\\':
+			if (!escaped) {
+				pat++;
+				break;
+			}
+			// fallthrough
+
 		case '#':
-			if (!isDigit(*str))
-				return false;
-			pat++;
-			str++;
-			break;
+			// treat # as a wildcard for digits unless escaped
+			if (!escaped) {
+				if (!isDigit(*str))
+					return false;
+				pat++;
+				str++;
+				break;
+			}
+			// fallthrough
 
 		default:
 			if ((!ignoreCase && *pat != *str) ||
@@ -910,6 +953,8 @@ bool matchString(const char *str, const char *pat, bool ignoreCase, bool pathMod
 			pat++;
 			str++;
 		}
+
+		escaped = !escaped && (curPat == '\\');
 	}
 }
 

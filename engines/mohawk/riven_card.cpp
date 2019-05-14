@@ -73,7 +73,11 @@ void RivenCard::loadCardResource(uint16 id) {
 void RivenCard::applyPatches(uint16 id) {
 	uint32 globalId = _vm->getStack()->getCardGlobalId(id);
 
-	applyPropertiesPatch8EB7(globalId);
+	if (globalId == 0x2A3BC) {
+		applyPropertiesPatch8EB7(globalId, "jladder", 3);
+	} else if (globalId == 0x8EB7) {
+		applyPropertiesPatch8EB7(globalId, "jgate", 3);
+	}
 	applyPropertiesPatch2E76(globalId);
 
 	// Apply script patches
@@ -83,9 +87,10 @@ void RivenCard::applyPatches(uint16 id) {
 
 	applyPropertiesPatch22118(globalId);
 	applyPropertiesPatchE2E(globalId);
+	applyPropertiesPatch1518D(globalId);
 }
 
-void RivenCard::applyPropertiesPatch8EB7(uint32 globalId) {
+void RivenCard::applyPropertiesPatch8EB7(uint32 globalId, const Common::String &var, uint16 hotspotId) {
 	// On Jungle Island on the back side of the "beetle" gate, the forward hotspot
 	// is always enabled, preventing keyboard navigation from automatically opening
 	// the gate.
@@ -108,48 +113,47 @@ void RivenCard::applyPropertiesPatch8EB7(uint32 globalId) {
 	// case 1:
 	//     activateBLST(5);
 	//     break;
-	if (globalId == 0x8EB7) {
-		HotspotEnableRecord forwardEnabled;
-		forwardEnabled.index = _hotspotEnableList.back().index + 1;
-		forwardEnabled.hotspotId = 3;
-		forwardEnabled.enabled = 1;
-		_hotspotEnableList.push_back(forwardEnabled);
 
-		HotspotEnableRecord forwardDisabled;
-		forwardDisabled.index = _hotspotEnableList.back().index + 1;
-		forwardDisabled.hotspotId = 3;
-		forwardDisabled.enabled = 0;
-		_hotspotEnableList.push_back(forwardDisabled);
+	HotspotEnableRecord forwardEnabled;
+	forwardEnabled.index = _hotspotEnableList.back().index + 1;
+	forwardEnabled.hotspotId = hotspotId;
+	forwardEnabled.enabled = 1;
+	_hotspotEnableList.push_back(forwardEnabled);
 
-		uint16 jGateVariable = _vm->getStack()->getIdFromName(kVariableNames, "jgate");
-		uint16 patchData[] = {
-				1, // Command count in script
-				kRivenCommandSwitch,
-				2, // Unused
-				jGateVariable,
-				2, // Branches count
+	HotspotEnableRecord forwardDisabled;
+	forwardDisabled.index = _hotspotEnableList.back().index + 1;
+	forwardDisabled.hotspotId = hotspotId;
+	forwardDisabled.enabled = 0;
+	_hotspotEnableList.push_back(forwardDisabled);
 
-				0, // jgate == 0 branch (gate closed)
-				1, // Command count in sub-script
-				kRivenCommandActivateBLST,
-				1, // Argument count
-				forwardDisabled.index,
+	uint16 jGateVariable = _vm->getStack()->getIdFromName(kVariableNames, var);
+	uint16 patchData[] = {
+			1, // Command count in script
+			kRivenCommandSwitch,
+			2, // Unused
+			jGateVariable,
+			2, // Branches count
 
-				1, // jgate == 1 branch (gate open)
-				1, // Command count in sub-script
-				kRivenCommandActivateBLST,
-				1, // Argument count
-				forwardEnabled.index
-		};
+			0, // jgate == 0 branch (gate closed)
+			1, // Command count in sub-script
+			kRivenCommandActivateBLST,
+			1, // Argument count
+			forwardDisabled.index,
 
-		RivenScriptPtr patchScript = _vm->_scriptMan->readScriptFromData(patchData, ARRAYSIZE(patchData));
+			1, // jgate == 1 branch (gate open)
+			1, // Command count in sub-script
+			kRivenCommandActivateBLST,
+			1, // Argument count
+			forwardEnabled.index
+	};
 
-		// Append the patch to the existing script
-		RivenScriptPtr loadScript = getScript(kCardLoadScript);
-		loadScript += patchScript;
+	RivenScriptPtr patchScript = _vm->_scriptMan->readScriptFromData(patchData, ARRAYSIZE(patchData));
 
-		debugC(kRivenDebugPatches, "Applied fix always enabled forward hotspot in card %x", globalId);
-	}
+	// Append the patch to the existing script
+	RivenScriptPtr loadScript = getScript(kCardLoadScript);
+	loadScript += patchScript;
+
+	debugC(kRivenDebugPatches, "Applied fix always enabled forward hotspot in card %x", globalId);
 }
 
 void RivenCard::applyPropertiesPatch2E76(uint32 globalId) {
@@ -407,6 +411,62 @@ void RivenCard::applyPropertiesPatchE2E(uint32 globalId) {
 		addMenuHotspot(26, Common::Rect(470, 309, 602, 326), 6, RivenStacks::ASpit::kExternalOptions,     "xaOptions");
 		addMenuHotspot(27, Common::Rect(470, 335, 602, 352), 7, RivenStacks::ASpit::kExternalQuit,        "xademoquit");
 		_vm->getStack()->registerName(kExternalCommandNames,    RivenStacks::ASpit::kExternalNewGame,     "xaNewGame");
+	}
+}
+
+void RivenCard::applyPropertiesPatch1518D(uint32 globalId) {
+	// Inside Jungle Island's dome, when looking at the open book,
+	// stepping back from the stand and then looking at the book
+	// again, the book closing animation would play again.
+	//
+	// Comparing the scripts for the Jungle dome and the other domes
+	// shows a small portion of script is missing.
+	// The following patch adds it back so the jungle dome script
+	// matches the other domes.
+	//
+	// Added script part:
+	//   == Script 2 ==
+	//   [...]
+	//   type: CardEnter
+	//   switch (jbook) {
+	//   case 2:
+	//     playMovieBlocking(1);
+	//     jbook = 0;
+	//     refreshCard();
+	//     break;
+	//   }
+	if (globalId == 0x1518D) {
+		uint16 jBookVariable = _vm->getStack()->getIdFromName(kVariableNames, "jbook");
+		uint16 patchData[] = {
+		        1, // Command count in script
+		        kRivenCommandSwitch,
+		        2, // Unused
+		        jBookVariable,
+		        1, // Branches count
+
+		        2, // jbook == 2 branch
+		        3, // Command count in sub-script
+
+		        kRivenCommandPlayMovieBlocking,
+		        1, // Argument count
+		        1, // Video id
+
+		        kRivenCommandSetVariable,
+		        2, // Argument count
+		        jBookVariable,
+		        0, // Variable value
+
+		        kRivenCommandRefreshCard,
+		        0 // Argument count
+		};
+
+		RivenScriptPtr patchScript = _vm->_scriptMan->readScriptFromData(patchData, ARRAYSIZE(patchData));
+
+		// Append the patch to the existing script
+		RivenScriptPtr loadScript = getScript(kCardEnterScript);
+		loadScript += patchScript;
+
+		debugC(kRivenDebugPatches, "Applied jungle book close loop to card %x", globalId);
 	}
 }
 
@@ -860,10 +920,12 @@ void RivenCard::leave() {
 
 	if (_pressedHotspot) {
 		script += _pressedHotspot->getScript(kMouseUpScript);
+		_pressedHotspot = nullptr;
 	}
 
 	if (_hoveredHotspot) {
 		script += _hoveredHotspot->getScript(kMouseLeaveScript);
+		_hoveredHotspot = nullptr;
 	}
 
 	script += getScript(kCardLeaveScript);

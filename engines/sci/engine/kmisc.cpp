@@ -38,7 +38,7 @@
 
 namespace Sci {
 
-reg_t kRestartGame(EngineState *s, int argc, reg_t *argv) {
+reg_t kRestartGame16(EngineState *s, int argc, reg_t *argv) {
 	s->shrinkStackToBase();
 
 	s->abortScriptProcessing = kAbortRestartGame; // Force vm to abort ASAP
@@ -415,7 +415,15 @@ reg_t kGetConfig(EngineState *s, int argc, reg_t *argv) {
 		s->_segMan->strcpy(data, "");
 	} else if (setting == "game") {
 		// Hoyle 5 startup, specifies the number of the game to start.
-		s->_segMan->strcpy(data, "");
+		if (g_sci->getGameId() == GID_HOYLE5 &&
+			!g_sci->getResMan()->testResource(ResourceId(kResourceTypeScript, 100)) &&
+			g_sci->getResMan()->testResource(ResourceId(kResourceTypeScript, 700))) {
+			// Special case for Hoyle 5 Bridge: only one game is included (Bridge),
+			// so mimic the setting in 700.cfg and set the starting room number to 700.
+			s->_segMan->strcpy(data, "700");
+		} else {
+			s->_segMan->strcpy(data, "");
+		}
 	} else if (setting == "laptop") {
 		// Hoyle 5 startup.
 		s->_segMan->strcpy(data, "");
@@ -495,8 +503,7 @@ reg_t kIconBar(EngineState *s, int argc, reg_t *argv) {
 
 	switch (argv[0].toUint16()) {
 	case 0: // InitIconBar
-		for (int i = 0; i < argv[1].toUint16(); i++)
-			g_sci->_gfxMacIconBar->addIcon(argv[i + 2]);
+		g_sci->_gfxMacIconBar->initIcons(argv[1].toUint16(), &argv[2]);
 		break;
 	case 1: // DisposeIconBar
 		warning("kIconBar(Dispose)");
@@ -621,6 +628,8 @@ reg_t kPlatform(EngineState *s, int argc, reg_t *argv) {
 	return NULL_REG;
 }
 
+extern void showScummVMDialog(const Common::String &message);
+
 #ifdef ENABLE_SCI32
 reg_t kPlatform32(EngineState *s, int argc, reg_t *argv) {
 	enum Operation {
@@ -685,8 +694,6 @@ reg_t kWinExec(EngineState *s, int argc, reg_t *argv) {
 	return NULL_REG;
 }
 
-extern void showScummVMDialog(const Common::String &message);
-
 reg_t kWinDLL(EngineState *s, int argc, reg_t *argv) {
 	uint16 operation = argv[0].toUint16();
 	Common::String dllName = s->_segMan->getString(argv[1]);
@@ -717,6 +724,25 @@ reg_t kWinDLL(EngineState *s, int argc, reg_t *argv) {
 }
 
 #endif
+
+reg_t kKawaHacks(EngineState *s, int argc, reg_t *argv) {
+	switch (argv[0].toUint16()) {
+	case 0: { // DoAlert
+		showScummVMDialog(s->_segMan->getString(argv[1]));
+		return NULL_REG;
+	}
+	case 1: // ZaWarudo
+		// Unused, would invert the color palette for the specified range.
+		return NULL_REG;
+	case 2: // SetTitleColors
+		// Unused, would change the colors for plain windows' title bars.
+		return NULL_REG;
+	case 3: // IsDebug
+		// Should return 1 if running with an internal debugger, 2 if we have AddMenu support, 3 if both.
+		return TRUE_REG;
+	}
+	return NULL_REG;
+}
 
 reg_t kEmpty(EngineState *s, int argc, reg_t *argv) {
 	// Placeholder for empty kernel functions which are still called from the

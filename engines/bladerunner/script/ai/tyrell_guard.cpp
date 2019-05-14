@@ -46,15 +46,16 @@ bool AIScriptTyrellGuard::Update() {
 
 void AIScriptTyrellGuard::TimerExpired(int timer) {
 	switch (timer) {
-	case 0:
-		AI_Countdown_Timer_Reset(kActorTyrellGuard, 0);
+	case kActorTimerAIScriptCustomTask0:
+		AI_Countdown_Timer_Reset(kActorTyrellGuard, kActorTimerAIScriptCustomTask0);
 		if (Actor_Query_Which_Set_In(kActorMcCoy) == kSetTB02_TB03) {
-			Actor_Set_Goal_Number(kActorTyrellGuard, 301);
+			Actor_Set_Goal_Number(kActorTyrellGuard, kGoalTyrellGuardWakeUpAndArrestMcCoy);
 		}
 		break;
-	case 1:
-		AI_Countdown_Timer_Reset(kActorTyrellGuard, 1);
-		Actor_Set_Goal_Number(kActorTyrellGuard, 303);
+
+	case kActorTimerAIScriptCustomTask1:
+		AI_Countdown_Timer_Reset(kActorTyrellGuard, kActorTimerAIScriptCustomTask1);
+		Actor_Set_Goal_Number(kActorTyrellGuard, kGoalTyrellGuardArrestMcCoy);
 		break;
 	}
 }
@@ -105,36 +106,40 @@ int AIScriptTyrellGuard::GetFriendlinessModifierIfGetsClue(int otherActorId, int
 
 bool AIScriptTyrellGuard::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 	switch (newGoalNumber) {
-	case 300:
+	case kGoalTyrellGuardSleeping:
 		if (currentGoalNumber != newGoalNumber) {
 			Actor_Change_Animation_Mode(kActorTyrellGuard, 55);
-			AI_Countdown_Timer_Start(kActorTyrellGuard, 0, 30);
+			AI_Countdown_Timer_Start(kActorTyrellGuard, kActorTimerAIScriptCustomTask0, 30);
 		}
 		return true;
-	case 301:
+
+	case kGoalTyrellGuardWakeUpAndArrestMcCoy:
 		Actor_Change_Animation_Mode(kActorTyrellGuard, kAnimationModeIdle);
 		Delay(1000);
 		Actor_Says(kActorTyrellGuard, 320, 14);
 		Actor_Change_Animation_Mode(kActorTyrellGuard, 50);
-		Ambient_Sounds_Play_Sound(590, 100, 0, 0, 0);
+		Ambient_Sounds_Play_Sound(kSfxTBALARM, 100, 0, 0, 0);
 		Delay(1000);
 		Actor_Force_Stop_Walking(kActorMcCoy);
-		Actor_Set_Goal_Number(kActorMcCoy, 500);
+		Actor_Set_Goal_Number(kActorMcCoy, kGoalMcCoyArrested);
 		return true;
-	case 302:
-		AI_Countdown_Timer_Reset(kActorTyrellGuard, 0);
+
+	case kGoalTyrellGuardWakeUp:
+		AI_Countdown_Timer_Reset(kActorTyrellGuard, kActorTimerAIScriptCustomTask0);
 		Actor_Says(kActorTyrellGuard, 310, 14);
-		AI_Countdown_Timer_Start(kActorTyrellGuard, 1, 20);
+		AI_Countdown_Timer_Start(kActorTyrellGuard, kActorTimerAIScriptCustomTask1, 20);
 		return true;
-	case 303:
+
+	case kGoalTyrellGuardArrestMcCoy:
 		Actor_Change_Animation_Mode(kActorTyrellGuard, 50);
-		Ambient_Sounds_Play_Sound(590, 100, 0, 0, 0);
+		Ambient_Sounds_Play_Sound(kSfxTBALARM, 100, 0, 0, 0);
 		Delay(1000);
 		Actor_Force_Stop_Walking(kActorMcCoy);
-		Actor_Set_Goal_Number(kActorMcCoy, 500);
+		Actor_Set_Goal_Number(kActorMcCoy, kGoalMcCoyArrested);
 		return true;
-	case 304:
-		AI_Countdown_Timer_Reset(kActorTyrellGuard, 1);
+
+	case kGoalTyrellGuardWait:
+		AI_Countdown_Timer_Reset(kActorTyrellGuard, kActorTimerAIScriptCustomTask1);
 		return true;
 	}
 	return false;
@@ -149,6 +154,7 @@ bool AIScriptTyrellGuard::UpdateAnimation(int *animation, int *frame) {
 			_animationFrame = 0;
 		}
 		break;
+
 	case 1:
 		*animation = 564;
 		if (_animationFrame <= 5) {
@@ -158,6 +164,7 @@ bool AIScriptTyrellGuard::UpdateAnimation(int *animation, int *frame) {
 		}
 		_animationFrame += _frameDelta;
 		break;
+
 	case 2:
 		*animation = 564;
 		_animationFrame++;
@@ -166,9 +173,12 @@ bool AIScriptTyrellGuard::UpdateAnimation(int *animation, int *frame) {
 			_animationState = 0;
 		}
 		break;
+
 	case 3:
 		*animation = 558;
-		if (_animationFrame == 0 && _flag1) {
+		if (_animationFrame == 0
+		 && _flag1
+		) {
 			*animation = 555;
 			_animationState = 0;
 		} else {
@@ -178,6 +188,7 @@ bool AIScriptTyrellGuard::UpdateAnimation(int *animation, int *frame) {
 			}
 		}
 		break;
+
 	case 4:
 		*animation = 559;
 		_animationFrame++;
@@ -187,6 +198,7 @@ bool AIScriptTyrellGuard::UpdateAnimation(int *animation, int *frame) {
 			_animationState = 3;
 		}
 		break;
+
 	case 5:
 		*animation = 560;
 		_animationFrame++;
@@ -196,6 +208,7 @@ bool AIScriptTyrellGuard::UpdateAnimation(int *animation, int *frame) {
 			_animationState = 3;
 		}
 		break;
+
 	case 6:
 		*animation = 561;
 		_animationFrame++;
@@ -205,6 +218,7 @@ bool AIScriptTyrellGuard::UpdateAnimation(int *animation, int *frame) {
 			_animationState = 3;
 		}
 		break;
+
 	case 7:
 		*animation = 562;
 		_animationFrame++;
@@ -232,6 +246,7 @@ bool AIScriptTyrellGuard::UpdateAnimation(int *animation, int *frame) {
 			_animationState = 0;
 		}
 		break;
+
 	case 10:
 		*animation = 564;
 		_animationFrame++;
@@ -241,6 +256,7 @@ bool AIScriptTyrellGuard::UpdateAnimation(int *animation, int *frame) {
 			_animationState = 0;
 		}
 		break;
+
 	case 11:
 		*animation = 565;
 		_animationFrame++;
@@ -282,6 +298,7 @@ bool AIScriptTyrellGuard::ChangeAnimationMode(int mode) {
 			break;
 		}
 		break;
+
 	case kAnimationModeTalk:
 		if (_animationState == 1) {
 			_animationState = 2;
@@ -291,6 +308,7 @@ bool AIScriptTyrellGuard::ChangeAnimationMode(int mode) {
 			_flag1 = false;
 		}
 		break;
+
 	case 12:
 		if (_animationState == 1) {
 			_animationState = 2;
@@ -300,6 +318,7 @@ bool AIScriptTyrellGuard::ChangeAnimationMode(int mode) {
 			_flag1 = false;
 		}
 		break;
+
 	case 13:
 		if (_animationState == 1) {
 			_animationState = 2;
@@ -309,6 +328,7 @@ bool AIScriptTyrellGuard::ChangeAnimationMode(int mode) {
 			_flag1 = false;
 		}
 		break;
+
 	case 14:
 		if (_animationState == 1) {
 			_animationState = 2;
@@ -318,6 +338,7 @@ bool AIScriptTyrellGuard::ChangeAnimationMode(int mode) {
 			_flag1 = false;
 		}
 		break;
+
 	case 15:
 		if (_animationState == 1) {
 			_animationState = 2;
@@ -327,14 +348,17 @@ bool AIScriptTyrellGuard::ChangeAnimationMode(int mode) {
 			_flag1 = false;
 		}
 		break;
+
 	case 23:
 		_animationState = 8;
 		_animationFrame = 0;
 		break;
+
 	case 50:
 		_animationState = 11;
 		_animationFrame = 0;
 		break;
+
 	case 43:
 	case 55:
 		if (_animationState != 1) {

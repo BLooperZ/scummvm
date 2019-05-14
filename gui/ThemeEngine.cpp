@@ -526,17 +526,25 @@ bool ThemeEngine::addFont(TextData textId, const Common::String &file, const Com
 		_texts[textId]->_fontPtr = loadFont(localized, scalableFile, charset, pointsize, textId == kTextDataDefault);
 
 		if (!_texts[textId]->_fontPtr) {
+			warning("Failed to load localized font '%s'", localized.c_str());
 			// Try standard fonts
 			_texts[textId]->_fontPtr = loadFont(file, scalableFile, Common::String(), pointsize, textId == kTextDataDefault);
 
-			if (!_texts[textId]->_fontPtr)
+			if (!_texts[textId]->_fontPtr) {
 				error("Couldn't load font '%s'/'%s'", file.c_str(), scalableFile.c_str());
-
+#ifdef USE_TRANSLATION
+				TransMan.setLanguage("C");
+#endif
+				return false; // fall-back attempt failed
+			}
+			// Success in fall-back attempt to standard (non-localized) font.
+			// However, still returns false here, probably to avoid ugly / garbage glyphs side-effects
+			// FIXME If we return false anyway why would we attempt the fall-back in the first place?
 #ifdef USE_TRANSLATION
 			TransMan.setLanguage("C");
 #endif
-			warning("Failed to load localized font '%s'.", localized.c_str());
-
+			// Returning true here, would allow falling back to standard fonts for the missing ones,
+			// but that leads to "garbage" glyphs being displayed on screen for non-Latin languages
 			return false;
 		}
 	}
@@ -1466,6 +1474,11 @@ DrawData ThemeEngine::parseDrawDataId(const Common::String &name) const {
 
 const Graphics::Font *ThemeEngine::loadScalableFont(const Common::String &filename, const Common::String &charset, const int pointsize, Common::String &name) {
 #ifdef USE_FREETYPE2
+#ifdef USE_TRANSLATION
+	const uint32 *mapping = TransMan.getCharsetMapping();
+#else
+	const uint32 *mapping = 0;
+#endif
 	name = Common::String::format("%s-%s@%d", filename.c_str(), charset.c_str(), pointsize);
 
 	// Try already loaded fonts.
@@ -1479,19 +1492,18 @@ const Graphics::Font *ThemeEngine::loadScalableFont(const Common::String &filena
 	for (Common::ArchiveMemberList::const_iterator i = members.begin(), end = members.end(); i != end; ++i) {
 		Common::SeekableReadStream *stream = (*i)->createReadStream();
 		if (stream) {
-			font = Graphics::loadTTFFont(*stream, pointsize, Graphics::kTTFSizeModeCharacter, 0, Graphics::kTTFRenderModeLight,
-#ifdef USE_TRANSLATION
-			                             TransMan.getCharsetMapping()
-#else
-			                             0
-#endif
-			                             );
+			font = Graphics::loadTTFFont(*stream, pointsize, Graphics::kTTFSizeModeCharacter, 0, Graphics::kTTFRenderModeLight, mapping);
 			delete stream;
 
 			if (font)
 				return font;
 		}
 	}
+
+	// Try loading the font from the common fonts archive.
+	font = Graphics::loadTTFFontFromArchive(filename, pointsize, Graphics::kTTFSizeModeCharacter, 0, Graphics::kTTFRenderModeLight, mapping);
+	if (font)
+		return font;
 #endif
 	return 0;
 }
@@ -1537,7 +1549,9 @@ const Graphics::Font *ThemeEngine::loadFont(const Common::String &filename, cons
 	const Graphics::Font *font = 0;
 
 	// Prefer scalable fonts over non-scalable fonts
-	font = loadScalableFont(scalableFilename, charset, pointsize, fontName);
+	if (!scalableFilename.empty())
+		font = loadScalableFont(scalableFilename, charset, pointsize, fontName);
+
 	if (!font)
 		font = loadFont(filename, fontName);
 
@@ -1787,7 +1801,7 @@ void ThemeEngine::listUsableThemes(const Common::FSNode &node, Common::List<Them
 
 Common::String ThemeEngine::getThemeFile(const Common::String &id) {
 	// FIXME: Actually "default" rather sounds like it should use
-	// our default theme which would mean "scummmodern" instead
+	// our default theme which would mean "scummremastered" instead
 	// of the builtin one.
 	if (id.equalsIgnoreCase("default"))
 		return Common::String();

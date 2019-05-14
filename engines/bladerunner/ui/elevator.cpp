@@ -29,8 +29,10 @@
 #include "bladerunner/mouse.h"
 #include "bladerunner/shape.h"
 #include "bladerunner/script/script.h"
+#include "bladerunner/time.h"
 #include "bladerunner/ui/ui_image_picker.h"
 #include "bladerunner/vqa_player.h"
+#include "bladerunner/subtitles.h"
 
 #include "common/rect.h"
 #include "common/str.h"
@@ -66,8 +68,8 @@ int Elevator::activate(int elevatorId) {
 		return 0;
 	}
 
-	_vqaPlayer = new VQAPlayer(_vm, &_vm->_surfaceBack);
-	if (!_vqaPlayer->open(vqaName)) {
+	_vqaPlayer = new VQAPlayer(_vm, &_vm->_surfaceBack, vqaName);
+	if (!_vqaPlayer->open()) {
 		return 0;
 	}
 
@@ -156,12 +158,12 @@ int Elevator::activate(int elevatorId) {
 
 	open();
 
-	// TODO: time->lock();
+	_vm->_time->pause();
 
 	_buttonClicked = -1;
 	do {
 		_vm->gameTick();
-	} while (_buttonClicked == -1);
+	} while (_vm->_gameIsRunning && _buttonClicked == -1);
 
 	_imagePicker->deactivate();
 
@@ -177,7 +179,7 @@ int Elevator::activate(int elevatorId) {
 
 	_isOpen = false;
 
-	// TODO: time->unlock();
+	_vm->_time->resume();
 
 	return _buttonClicked;
 }
@@ -202,7 +204,7 @@ int Elevator::handleMouseDown(int x, int y) {
 }
 
 void Elevator::tick() {
-	if (!_vm->_gameIsRunning) {
+	if (!_vm->_windowIsActive) {
 		return;
 	}
 
@@ -224,6 +226,8 @@ void Elevator::tick() {
 
 	_imagePicker->draw(_vm->_surfaceFront);
 	_vm->_mouse->draw(_vm->_surfaceFront, p.x, p.y);
+
+	_vm->_subtitles->tick(_vm->_surfaceFront);
 
 	_vm->blitToScreen(_vm->_surfaceFront);
 	tickDescription();
@@ -279,9 +283,7 @@ void Elevator::buttonFocus(int buttonId) {
 void Elevator::setupDescription(int actorId, int sentenceId) {
 	_actorId = actorId;
 	_sentenceId = sentenceId;
-
-	// TODO: Use proper timer
-	_timeSpeakDescription = _vm->getTotalPlayTime() + 600;
+	_timeSpeakDescription = _vm->_time->current() + 600;
 }
 
 void Elevator::resetDescription() {
@@ -291,7 +293,7 @@ void Elevator::resetDescription() {
 }
 
 void Elevator::tickDescription() {
-	int now = _vm->getTotalPlayTime();
+	int now = _vm->_time->current();
 	if (_actorId <= 0 || now < _timeSpeakDescription) {
 		return;
 	}
@@ -299,10 +301,6 @@ void Elevator::tickDescription() {
 	_vm->_actors[_actorId]->speechPlay(_sentenceId, false);
 	_actorId = -1;
 	_sentenceId = -1;
-}
-
-void Elevator::resume() {
-	// TODO
 }
 
 void Elevator::mouseInCallback(int buttonId, void *self) {
@@ -315,7 +313,7 @@ void Elevator::mouseOutCallback(int, void *self) {
 
 void Elevator::mouseDownCallback(int, void *self) {
 	Elevator *elevator = ((Elevator *)self);
-	elevator->_vm->_audioPlayer->playAud(elevator->_vm->_gameInfo->getSfxTrack(515), 100, 0, 0, 50, 0);
+	elevator->_vm->_audioPlayer->playAud(elevator->_vm->_gameInfo->getSfxTrack(kSfxELEBUTN1), 100, 0, 0, 50, 0);
 }
 
 void Elevator::mouseUpCallback(int buttonId, void *self) {

@@ -81,12 +81,15 @@ public:
 	DialogueMenu(BladeRunnerEngine *vm);
 	~DialogueMenu();
 
+	void clear();
+
 	bool loadText(const Common::String &name);
 
 	bool show();
 	bool hide();
 	bool addToList(int answer, bool done, int priorityPolite, int priorityNormal, int prioritySurly);
 	bool addToListNeverRepeatOnceSelected(int answer, int priorityPolite, int priorityNormal, int prioritySurly);
+	bool removeFromList(int answer);
 	bool clearList();
 	int  queryInput();
 	int  listSize() const;
@@ -106,7 +109,6 @@ private:
 	int  getAnswerIndex(int answer) const;
 	const char *getText(int id) const;
 	void calculatePosition(int unusedX = 0, int unusedY = 0);
-	void clear();
 	void reset();
 
 	static void darkenRect(Graphics::Surface &s, int x1, int y1, int x2, int y2);

@@ -162,7 +162,7 @@ IMPLEMENT_FUNCTION(6, Chapters, firstDream)
 		break;
 
 	case kActionEndSound:
-		getSound()->playSound(kEntityChapters, "MUS0009", kFlagDefault);
+		getSound()->playSound(kEntityChapters, "MUS009", kVolumeFull);
 		break;
 
 	case kActionKnock:
@@ -173,9 +173,9 @@ IMPLEMENT_FUNCTION(6, Chapters, firstDream)
 	case kActionOpenDoor:
 		if (params->param1) {
 			getEntities()->clearSequences(kEntityChapters);
-			getSoundQueue()->processEntry(kEntityChapters);
+			getSoundQueue()->fade(kEntityChapters);
 			getSound()->playSound(kEntityPlayer, "LIB014");
-			getSoundQueue()->resetState();
+			getSoundQueue()->startAmbient();
 
 			ENTITY_PARAM(0, 4) = 7;
 
@@ -194,10 +194,10 @@ IMPLEMENT_FUNCTION(6, Chapters, firstDream)
 			callbackAction();
 		} else {
 			getSound()->playSound(kEntityPlayer, "LIB014");
-			getSound()->playSound(kEntityPlayer, "LIB015", kFlagDefault, 15);
+			getSound()->playSound(kEntityPlayer, "LIB015", kVolumeFull, 15);
 
 			if (!getSoundQueue()->isBuffered(kEntityChapters))
-				getSound()->playSound(kEntityChapters, "MUS009", kFlagDefault);
+				getSound()->playSound(kEntityChapters, "MUS009", kVolumeFull);
 
 			getScenes()->loadSceneFromPosition(kCarLocomotive, 38);
 
@@ -243,33 +243,34 @@ IMPLEMENT_FUNCTION(6, Chapters, firstDream)
 		RESET_ENTITY_STATE(kEntityHadija, Alouan, setup_function12);
 
 		if (ENTITY_PARAM(0, 2) || ENTITY_PARAM(0, 3)) {
-			getSoundQueue()->removeFromQueue(kEntityChapters);
+			getSoundQueue()->stop(kEntityChapters);
 
 			ENTITY_PARAM(0, 2) = 0;
 			ENTITY_PARAM(0, 3) = 0;
 		}
 
-		getSoundQueue()->processEntries();
+		getSoundQueue()->endAmbient();
 
 		if (getSoundQueue()->isBuffered("CON1505"))
-			getSoundQueue()->processEntry("CON1505");
+			getSoundQueue()->fade("CON1505");
 
 		if (getSoundQueue()->isBuffered("AUG1057"))
-			getSoundQueue()->processEntry("AUG1057");
+			getSoundQueue()->fade("AUG1057");
 
 		if (getSoundQueue()->isBuffered("ZFX1005"))
-			getSoundQueue()->processEntry("ZFX1005");
+			getSoundQueue()->fade("ZFX1005");
 		else if (getSoundQueue()->isBuffered("ZFX1006"))
-			getSoundQueue()->processEntry("ZFX1006");
+			getSoundQueue()->fade("ZFX1006");
 		else if (getSoundQueue()->isBuffered("ZFX1007"))
-			getSoundQueue()->processEntry("ZFX1007");
+			getSoundQueue()->fade("ZFX1007");
 		else if (getSoundQueue()->isBuffered("ZFX1007A"))
-			getSoundQueue()->processEntry("ZFX1007A");
+			getSoundQueue()->fade("ZFX1007A");
 		else if (getSoundQueue()->isBuffered("ZFX1007B"))
-			getSoundQueue()->processEntry("ZFX1007B");
+			getSoundQueue()->fade("ZFX1007B");
 
-		getSound()->playSound(kEntityPlayer, "MUS008", kFlagDefault);
+		getSound()->playSound(kEntityPlayer, "MUS008", kVolumeFull);
 		getInventory()->unselectItem();
+		// TODO: fade to black screen
 
 		// FIXME add event pump ?
 		while (getSoundQueue()->isBuffered("MUS008"))
@@ -302,7 +303,7 @@ IMPLEMENT_FUNCTION(6, Chapters, firstDream)
 				getSound()->playSound(kEntityPlayer, "LIB031");
 
 			if (params->param2 == 3) {
-				getData()->car = kCarGreenSleeping;
+				getData()->car = kCarLocomotive;
 				getEntities()->drawSequenceLeft(kEntityChapters, "JUGL");
 			}
 		}
@@ -316,7 +317,7 @@ IMPLEMENT_FUNCTION(7, Chapters, chapter1Init)
 		return;
 
 	getProgress().chapter = kChapter1;
-	getSoundQueue()->resetState();
+	getSoundQueue()->startAmbient();
 
 	getState()->time = kTimeStartGame;
 	getState()->timeDelta = 0;
@@ -411,7 +412,7 @@ label_processStations:
 
 label_enter_epernay:
 		// Entering Epernay station
-		if (timeCheckEnterStation(kTimeEnterEpernay, params->param8, 1, "Epernay", kCityEpernay))
+		if (timeCheckEnterStation(kTimeEnterEpernay, params->param8, 2, "Epernay", kCityEpernay))
 			break;
 
 label_exit_epernay:
@@ -583,7 +584,7 @@ label_chapter1_next:
 		}
 
 		if (ENTITY_PARAM(0, 3)) {
-			getSoundQueue()->resetState();
+			getSoundQueue()->startAmbient();
 			ENTITY_PARAM(0, 3) = 0;
 
 			if (params->param4) {
@@ -714,13 +715,14 @@ IMPLEMENT_FUNCTION(9, Chapters, chapter1Next)
 	if (savepoint.action == kActionDefault) {
 		// Reset sound cache
 		if (ENTITY_PARAM(0, 2) || ENTITY_PARAM(0, 3)) {
-			getSoundQueue()->removeFromQueue(kEntityChapters);
+			getSoundQueue()->stop(kEntityChapters);
 			ENTITY_PARAM(0, 2) = 0;
 			ENTITY_PARAM(0, 3) = 0;
 		}
 
-		getSound()->playSound(kEntityPlayer, "MUS008", kFlagDefault);
+		getSound()->playSound(kEntityPlayer, "MUS008", kVolumeFull);
 		getInventory()->unselectItem();
+		// TODO: fade to black screen
 
 		while (getSoundQueue()->isBuffered("MUS008"))
 			getSoundQueue()->updateQueue();
@@ -782,6 +784,8 @@ IMPLEMENT_FUNCTION(11, Chapters, chapter2Init)
 
 	// Setup inventory & items location
 	getInventory()->addItem(kItemGreenJacket);
+	getInventory()->get(kItemCorpse)->location = kObjectLocationNone;
+	getInventory()->get(kItemCorpse)->inPocket = false;
 
 	getObjects()->update(kObjectHandleOutsideLeft, kEntityPlayer, kObjectLocation1, kCursorNormal, kCursorHand);
 	getObjects()->update(kObjectHandleOutsideRight, kEntityPlayer, kObjectLocation1, kCursorNormal, kCursorHand);
@@ -810,7 +814,7 @@ IMPLEMENT_FUNCTION(11, Chapters, chapter2Init)
 
 	// Reset sound cache
 	if (ENTITY_PARAM(0, 2) || ENTITY_PARAM(0, 3)) {
-		getSoundQueue()->removeFromQueue(kEntityChapters);
+		getSoundQueue()->stop(kEntityChapters);
 		ENTITY_PARAM(0, 2) = 0;
 		ENTITY_PARAM(0, 3) = 0;
 	}
@@ -895,10 +899,12 @@ IMPLEMENT_FUNCTION(14, Chapters, chapter3Init)
 		getObjects()->update(kObject107, kEntityPlayer, kObjectLocation3, kCursorKeepValue, kCursorKeepValue);
 
 		if (ENTITY_PARAM(0, 2) || ENTITY_PARAM(0, 3)) {
-			getSoundQueue()->removeFromQueue(kEntityChapters);
+			getSoundQueue()->stop(kEntityChapters);
 			ENTITY_PARAM(0, 2) = 0;
 			ENTITY_PARAM(0, 3) = 0;
 		}
+
+		// TODO: fade to black screen
 
 		getScenes()->loadSceneFromPosition(kCarRestaurant, 60);
 		getInventory()->show();
@@ -1017,7 +1023,7 @@ label_callback_8:
 				}
 			}
 
-			getSoundQueue()->resetState();
+			getSoundQueue()->startAmbient();
 			getSound()->playSteam((CityIndex)ENTITY_PARAM(0, 4));
 
 			ENTITY_PARAM(0, 2) = 0;
@@ -1028,7 +1034,7 @@ label_callback_8:
 		}
 
 		if (ENTITY_PARAM(0, 3)) {
-			getSoundQueue()->resetState();
+			getSoundQueue()->startAmbient();
 			ENTITY_PARAM(0, 3) = 0;
 		}
 		break;
@@ -1085,7 +1091,7 @@ IMPLEMENT_FUNCTION(16, Chapters, viennaEvents)
 	case kActionDefault:
 		getEntityData(kEntityPlayer)->car = kCarLocomotive;
 		if (getSoundQueue()->isBuffered(kEntityAbbot))
-			getSoundQueue()->processEntry(kEntityAbbot);
+			getSoundQueue()->fade(kEntityAbbot);
 
 		if (!getEvent(kEventAugustBringBriefcase)) {
 			setCallback(1);
@@ -1202,8 +1208,8 @@ IMPLEMENT_FUNCTION(18, Chapters, chapter4Init)
 	if (savepoint.action != kActionDefault)
 		return;
 
-	getSoundQueue()->processEntries();
-	getSoundQueue()->resetState();
+	getSoundQueue()->endAmbient();
+	getSoundQueue()->startAmbient();
 
 	getProgress().isTrainRunning = true;
 
@@ -1229,10 +1235,12 @@ IMPLEMENT_FUNCTION(18, Chapters, chapter4Init)
 	getObjects()->update(kObject107, kEntityPlayer, kObjectLocation3, kCursorKeepValue, kCursorKeepValue);
 
 	if (ENTITY_PARAM(0, 2) || ENTITY_PARAM(0, 3)) {
-		getSoundQueue()->removeFromQueue(kEntityChapters);
+		getSoundQueue()->stop(kEntityChapters);
 		ENTITY_PARAM(0, 2) = 0;
 		ENTITY_PARAM(0, 3) = 0;
 	}
+
+	// TODO: fade to black screen
 
 	if (getInventory()->hasItem(kItemFirebird))
 		getScenes()->loadSceneFromPosition(kCarGreenSleeping, 76);
@@ -1376,7 +1384,7 @@ label_callback_4:
 		}
 
 		if (ENTITY_PARAM(0, 3)) {
-			getSoundQueue()->resetState();
+			getSoundQueue()->startAmbient();
 			ENTITY_PARAM(0, 3) = 0;
 		} else if (!params->param2 && !params->param3) {
 			getSound()->playSound(kEntityChapters, "ZFX1001");
@@ -1414,16 +1422,16 @@ label_callback_4:
 
 		case 5:
 			if (getSoundQueue()->isBuffered(kEntityChapters))
-				getSoundQueue()->removeFromQueue(kEntityChapters);
+				getSoundQueue()->stop(kEntityChapters);
 
 			getAction()->playAnimation(kEventTrainExplosionBridge);
 			getLogic()->gameOver(kSavegameTypeIndex, 1, kSceneNone, true);
 			break;
 
 		case 6:
-			getSoundQueue()->processEntries();
+			getSoundQueue()->endAmbient();
 			getAction()->playAnimation(kEventTylerCastleDream);
-			getSoundQueue()->resetState();
+			getSoundQueue()->startAmbient();
 
 			getProgress().field_18 = 1;
 
@@ -1475,7 +1483,7 @@ label_callback_4:
 
 		case 11:
 			getScenes()->loadSceneFromPosition(kCarRedSleeping, 74);
-			getSound()->playSound(kEntityTrain, "ZFX4001", kFlagDefault);
+			getSound()->playSound(kEntityTrain, "ZFX4001", kVolumeFull);
 			getLogic()->gameOver(kSavegameTypeIndex, 1, kSceneNone, true);
 			break;
 		}
@@ -1522,14 +1530,19 @@ label_callback_4:
 		params->param1 = 1;
 
 		if (ENTITY_PARAM(0, 2) || ENTITY_PARAM(0, 3)) {
-			getSoundQueue()->removeFromQueue(kEntityChapters);
+			getSoundQueue()->stop(kEntityChapters);
 
 			ENTITY_PARAM(0, 2) = 0;
 			ENTITY_PARAM(0, 3) = 0;
 		}
 
-		getSound()->playSound(kEntityPlayer, "MUS008", kFlagDefault);
+		// BUG: the original game fades to black screen twice, before MUS008 starts playing
+		// (the second call just makes a delay)
+
+		getSound()->playSound(kEntityPlayer, "MUS008", kVolumeFull);
 		getInventory()->unselectItem();
+
+		// TODO: fade to black screen
 
 		while (getSoundQueue()->isBuffered("MUS008"))
 			getSoundQueue()->updateQueue();
@@ -1580,7 +1593,7 @@ label_callback_4:
 		getState()->time = kTime2520000;
 
 		if (getSoundQueue()->isBuffered(kEntityChapters))
-			getSoundQueue()->removeFromQueue(kEntityChapters);
+			getSoundQueue()->stop(kEntityChapters);
 
 		getEntities()->clearSequences(kEntityChapters);
 		getInventory()->removeItem(kItemTelegram);
@@ -1593,9 +1606,9 @@ label_callback_4:
 
 	case kAction201959744:
 		if (getSoundQueue()->isBuffered(kEntityChapters))
-			getSoundQueue()->removeFromQueue(kEntityChapters);
+			getSoundQueue()->stop(kEntityChapters);
 
-		getSound()->playSound(kEntityTrain, "ZFX4001", kFlagDefault);
+		getSound()->playSound(kEntityTrain, "ZFX4001", kVolumeFull);
 
 		getLogic()->gameOver(kSavegameTypeIndex, 0, kSceneNone, true);
 		break;
@@ -1701,10 +1714,12 @@ IMPLEMENT_FUNCTION(21, Chapters, chapter5Init)
 		getObjects()->updateModel(kObjectRestaurantCar, kObjectModel2);
 
 		if (ENTITY_PARAM(0, 2) || ENTITY_PARAM(0, 3)) {
-			getSoundQueue()->removeFromQueue(kEntityChapters);
+			getSoundQueue()->stop(kEntityChapters);
 			ENTITY_PARAM(0, 2) = 0;
 			ENTITY_PARAM(0, 3) = 0;
 		}
+
+		// TODO: fade to black screen
 
 		getScenes()->loadSceneFromPosition(kCarBaggageRear, 95);
 		getInventory()->show();
@@ -1731,8 +1746,8 @@ IMPLEMENT_FUNCTION(22, Chapters, chapter5Handler)
 			params->param2 = 1;
 
 			if (!getProgress().isNightTime) {
-				getSound()->playSound(kEntityChapters, "ARRIVE", kFlag8);
-				getSoundQueue()->processEntries();
+				getSound()->playSound(kEntityChapters, "ARRIVE", kVolume8);
+				getSoundQueue()->endAmbient();
 			}
 		}
 
@@ -1740,8 +1755,8 @@ IMPLEMENT_FUNCTION(22, Chapters, chapter5Handler)
 			params->param3 = 1;
 
 			if (!getEvent(kEventLocomotiveMilosDay) && !getEvent(kEventLocomotiveMilosNight)) {
-				getSound()->playSound(kEntityChapters, "ARRIVE", kFlag8);
-				getSoundQueue()->processEntries();
+				getSound()->playSound(kEntityChapters, "ARRIVE", kVolume8);
+				getSoundQueue()->endAmbient();
 			}
 		}
 		break;
@@ -1771,7 +1786,7 @@ IMPLEMENT_FUNCTION(22, Chapters, chapter5Handler)
 		getState()->time = kTime2916000;
 
 		if (getSoundQueue()->isBuffered(kEntityChapters))
-			getSoundQueue()->removeFromQueue(kEntityChapters);
+			getSoundQueue()->stop(kEntityChapters);
 		break;
 	}
 IMPLEMENT_FUNCTION_END
@@ -1786,7 +1801,7 @@ void Chapters::enterExitStation(const SavePoint &savepoint, bool isEnteringStati
 			return;
 		}
 
-		getSoundQueue()->removeFromQueue(kEntityChapters);
+		getSoundQueue()->stop(kEntityChapters);
 
 		if (!ENTITY_PARAM(0, 2)) {
 			if (ENTITY_PARAM(0, 3))
@@ -1853,8 +1868,8 @@ void Chapters::enterExitStation(const SavePoint &savepoint, bool isEnteringStati
 void Chapters::enterExitHelper(bool isEnteringStation) {
 	EXPOSE_PARAMS(EntityData::EntityParametersSIIS);
 
-	getSound()->playSound(kEntityChapters, isEnteringStation ? "ARRIVE" : "DEPART", kFlag8);
-	getSoundQueue()->processEntries();
+	getSound()->playSound(kEntityChapters, isEnteringStation ? "ARRIVE" : "DEPART", kVolume8);
+	getSoundQueue()->endAmbient();
 
 	getObjects()->update(kObjectHandleOutsideLeft, kEntityPlayer, kObjectLocation1, kCursorNormal, isEnteringStation ? kCursorNormal : kCursorHand);
 	getObjects()->update(kObjectHandleOutsideRight, kEntityPlayer, kObjectLocation1, kCursorNormal, isEnteringStation ? kCursorNormal : kCursorHand);
@@ -1873,7 +1888,7 @@ void Chapters::enterExitHelper(bool isEnteringStation) {
 }
 
 void Chapters::playSteam() const {
-	getSoundQueue()->resetState();
+	getSoundQueue()->startAmbient();
 	getSound()->playSteam((CityIndex)ENTITY_PARAM(0, 4));
 	ENTITY_PARAM(0, 2) = 0;
 }

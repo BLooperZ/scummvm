@@ -43,7 +43,9 @@ public:
 	~TextResource();
 
 	bool open(const Common::String &name);
+
 	const char *getText(uint32 id) const;
+	const char *getOuttakeTextByFrame(uint32 frame) const;
 	int getCount() const;
 };
 

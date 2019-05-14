@@ -36,7 +36,6 @@ class UIImagePicker;
 class UIScrollBox;
 
 class KIASectionClues : public KIASectionBase {
-	//TODO: use gameInfo->getClueCount(), not in original game
 	static const int kClueCount = 288;
 
 	struct Line {
@@ -45,10 +44,10 @@ class KIASectionClues : public KIASectionBase {
 		int flags;
 	};
 
-	UIContainer         *_uiContainer;
-	UIImagePicker       *_buttons;
-	UIScrollBox         *_cluesScrollBox;
-	UIScrollBox         *_filterScrollBox;
+	UIContainer        *_uiContainer;
+	UIImagePicker      *_buttons;
+	UIScrollBox        *_cluesScrollBox;
+	UIScrollBox        *_filterScrollBox;
 
 	bool                _isOpen;
 	bool                _debugIntangible;
@@ -67,14 +66,17 @@ public:
 	KIASectionClues(BladeRunnerEngine *vm, ActorClues *clues);
 	~KIASectionClues();
 
-	void open();
-	void close();
+	void reset();
 
-	void draw(Graphics::Surface &surface);
+	void open() override;
+	void close() override;
 
-	void handleMouseMove(int mouseX, int mouseY);
-	void handleMouseDown(bool mainButton);
-	void handleMouseUp(bool mainButton);
+	void draw(Graphics::Surface &surface) override;
+
+	void handleMouseMove(int mouseX, int mouseY) override;
+	void handleMouseDown(bool mainButton) override;
+	void handleMouseUp(bool mainButton) override;
+	void handleMouseScroll(int direction) override;
 
 	void saveToLog();
 	void loadFromLog();

@@ -28,12 +28,13 @@
 #include "bladerunner/audio_player.h"
 #include "bladerunner/bladerunner.h"
 
-#include "common/debug.h"
 #include "common/str.h"
 
 namespace BladeRunner {
 
-const int AudioSpeech::kSpeechSamples[] = { 65, 355, 490, 465, 480, 485, 505, 760, 7655, 7770, 7740, 8170, 2705, 7200, 6460, 5560, 4870, 4555, 3880, 3525, 3595, 3250, 3070 };
+// Note: Speech samples here should be from A.TLK file
+const int kSpeechSamplesNumber = 23;
+const int AudioSpeech::kSpeechSamples[kSpeechSamplesNumber] = { 65, 355, 490, 465, 480, 485, 505, 760, 7655, 7770, 7740, 8170, 2705, 7200, 6460, 5560, 4870, 4555, 3880, 3525, 3595, 3250, 3070 };
 
 void AudioSpeech::ended() {
 	//Common::StackLock lock(_mutex);
@@ -48,18 +49,29 @@ void AudioSpeech::mixerChannelEnded(int channel, void *data) {
 
 AudioSpeech::AudioSpeech(BladeRunnerEngine *vm) {
 	_vm = vm;
-	_speechVolume = 50;
+	_speechVolume = BLADERUNNER_ORIGINAL_SETTINGS ? 50 : 100;
 	_isActive = false;
 	_data = new byte[kBufferSize];
 	_channel = -1;
 }
 
 AudioSpeech::~AudioSpeech() {
+	stopSpeech();
+	while (isPlaying()) {
+		// wait for the mixer to finish
+	}
+
 	delete[] _data;
 }
 
 bool AudioSpeech::playSpeech(const Common::String &name, int pan) {
-	// debug("AudioSpeech::playSpeech(\"%s\")", name);
+	if (isPlaying()) {
+		stopSpeech();
+	}
+
+	// Audio cache is not usable as hash function is producing collision for speech lines.
+	// It was not used in the original game either
+
 	Common::ScopedPtr<Common::SeekableReadStream> r(_vm->getResourceStream(name));
 
 	if (!r) {
@@ -82,9 +94,7 @@ bool AudioSpeech::playSpeech(const Common::String &name, int pan) {
 		return false;
 	}
 
-	AudStream *audioStream = new AudStream(_data);
-
-	// TODO: shorty mode - set rate of sound to 33khz
+	AudStream *audioStream = new AudStream(_data, _vm->_shortyMode ? 33000 : -1);
 
 	_channel = _vm->_audioMixer->play(
 		Audio::Mixer::kSpeechSoundType,
@@ -116,9 +126,9 @@ bool AudioSpeech::isPlaying() const {
 }
 
 bool AudioSpeech::playSpeechLine(int actorId, int sentenceId, int volume, int a4, int priority) {
-	int balance = _vm->_actors[actorId]->soundBalance();
+	int pan = _vm->_actors[actorId]->soundPan();
 	Common::String name = Common::String::format("%02d-%04d%s.AUD", actorId, sentenceId, _vm->_languageCode.c_str());
-	return _vm->_audioPlayer->playAud(name, _speechVolume * volume / 100, balance, balance, priority, kAudioPlayerOverrideVolume);
+	return _vm->_audioPlayer->playAud(name, _speechVolume * volume / 100, pan, pan, priority, kAudioPlayerOverrideVolume, Audio::Mixer::kSpeechSoundType);
 }
 
 void AudioSpeech::setVolume(int volume) {
@@ -130,7 +140,14 @@ int AudioSpeech::getVolume() const {
 }
 
 void AudioSpeech::playSample() {
-	_vm->_playerActor->speechPlay(kSpeechSamples[_vm->_rnd.getRandomNumber(22)], true);
+#if BLADERUNNER_ORIGINAL_BUGS
+	_vm->_playerActor->speechPlay(kSpeechSamples[_vm->_rnd.getRandomNumber(kSpeechSamplesNumber-1)], true);
+#else
+	if (_vm->openArchive("A.TLK")) {
+		// load sample speech even when in initial KIA screen (upon launch - but before loading a game)
+		_vm->_playerActor->speechPlay(kSpeechSamples[_vm->_rnd.getRandomNumber(kSpeechSamplesNumber-1)], true);
+	}
+#endif // BLADERUNNER_ORIGINAL_BUGS
 }
 
 } // End of namespace BladeRunner

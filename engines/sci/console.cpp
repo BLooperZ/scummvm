@@ -488,6 +488,9 @@ bool Console::cmdGetVersion(int argc, const char **argv) {
 	debugPrintf("Resource map version: %s\n", g_sci->getResMan()->getMapVersionDesc());
 	debugPrintf("Contains selector vocabulary (vocab.997): %s\n", hasVocab997 ? "yes" : "no");
 	debugPrintf("Has CantBeHere selector: %s\n", g_sci->getKernel()->_selectorCache.cantBeHere != -1 ? "yes" : "no");
+	if (getSciVersion() >= SCI_VERSION_2) {
+		debugPrintf("Plane id base: %d\n", g_sci->_features->detectPlaneIdBase());
+	}
 	debugPrintf("Game version (VERSION file): %s\n", gameVersion.c_str());
 	debugPrintf("\n");
 
@@ -2568,6 +2571,13 @@ bool Console::cmdShowMap(int argc, const char **argv) {
 		return true;
 	}
 
+#ifdef ENABLE_SCI32
+	if (getSciVersion() >= SCI_VERSION_2) {
+		debugPrintf("Command not available / implemented for SCI32 games.\n");
+		return true;
+	}
+#endif
+
 	int map = atoi(argv[1]);
 
 	switch (map) {
@@ -2575,7 +2585,9 @@ bool Console::cmdShowMap(int argc, const char **argv) {
 	case 1:
 	case 2:
 	case 3:
-		_engine->_gfxScreen->debugShowMap(map);
+		if (_engine->_gfxScreen) {
+			_engine->_gfxScreen->debugShowMap(map);
+		}
 		break;
 
 	default:
@@ -4001,7 +4013,7 @@ bool Console::cmdBreakpointAction(int argc, const char **argv) {
 
 	if (usage) {
 		debugPrintf("Change the action for the breakpoint with the specified index.\n");
-		debugPrintf("Usage: %s <breakpoint index> break|log|bt|inspect|none\n", argv[0]);
+		debugPrintf("Usage: %s <breakpoint index> break|log|bt|inspect|ignore\n", argv[0]);
 		debugPrintf("<index> * will process all breakpoints\n");
 		debugPrintf("Actions: break  : break into debugger\n");
 		debugPrintf("         log    : log without breaking\n");
@@ -4244,6 +4256,8 @@ bool Console::cmdBreakpointFunction(int argc, const char **argv) {
 	_debugState._breakpoints.push_back(bp);
 	_debugState._activeBreakpointTypes |= BREAK_EXPORT;
 
+	printBreakpoint(_debugState._breakpoints.size() - 1, bp);
+
 	return true;
 }
 
@@ -4279,6 +4293,8 @@ bool Console::cmdBreakpointAddress(int argc, const char **argv) {
 
 	_debugState._breakpoints.push_back(bp);
 	_debugState._activeBreakpointTypes |= BREAK_ADDRESS;
+
+	printBreakpoint(_debugState._breakpoints.size() - 1, bp);
 
 	return true;
 }

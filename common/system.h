@@ -49,6 +49,9 @@ class TaskbarManager;
 #if defined(USE_UPDATES)
 class UpdateManager;
 #endif
+#if defined(USE_SYSDIALOGS)
+class DialogManager;
+#endif
 class TimerManager;
 class SeekableReadStream;
 class WriteStream;
@@ -179,6 +182,15 @@ protected:
 	Common::UpdateManager *_updateManager;
 #endif
 
+#if defined(USE_SYSDIALOGS)
+	/**
+	 * No default value is provided for _dialogManager by OSystem.
+	 *
+	 * @note _dialogManager is deleted by the OSystem destructor.
+	 */
+	Common::DialogManager *_dialogManager;
+#endif
+
 	/**
 	 * No default value is provided for _fsFactory by OSystem.
 	 *
@@ -190,9 +202,21 @@ protected:
 	 */
 	FilesystemFactory *_fsFactory;
 
+private:
+	/**
+	 * Indicate if initBackend() has been called.
+	 */
+	bool _backendInitialized;
+
 	//@}
 
 public:
+
+	/**
+	 *
+	 * Destoy this OSystem instance.
+	 */
+	void destroy();
 
 	/**
 	 * The following method is called once, from main.cpp, after all
@@ -203,6 +227,13 @@ public:
 	 *       implementation.
 	 */
 	virtual void initBackend();
+
+	/**
+	 * Return false if initBackend() has not yet been called and true otherwise.
+	 * Some functionalities such as mutexes cannot be used until the backend
+	 * is initialized.
+	 */
+	bool backendInitialized() const { return _backendInitialized; }
 
 	/**
 	 * Allows the backend to perform engine specific init.
@@ -268,7 +299,7 @@ public:
 		kFeatureStretchMode,
 
 		/**
-		 * Determine whether a virtual keyboard is too be shown or not.
+		 * Determine whether a virtual keyboard is to be shown or not.
 		 * This would mostly be implemented by backends for hand held devices,
 		 * like PocketPC, Palms, Symbian phones like the P800, Zaurus, etc.
 		 */
@@ -342,7 +373,7 @@ public:
 		 *
 		 * This feature has no associated state.
 		 */
-		kFeatureOpenUrl	,
+		kFeatureOpenUrl,
 
 		/**
 		* show on-screen control
@@ -372,7 +403,13 @@ public:
 		/**
 		* shaders
 		*/
-		kFeatureShader
+		kFeatureShader,
+
+		/**
+		* Supports for using the native system file browser dialog
+		* through the DialogManager.
+		*/
+		kFeatureSystemBrowserDialog
 
 	};
 
@@ -850,7 +887,7 @@ public:
 	 * This method could be called very often by engines. Backends are hence
 	 * supposed to only perform any redrawing if it is necessary, and otherwise
 	 * return immediately. See
-	 * <http://wiki.scummvm.org/index.php/HOWTO-Backends#updateScreen.28.29_method>
+	 * <https://wiki.scummvm.org/index.php/HOWTO-Backends#updateScreen.28.29_method>
 	 */
 	virtual void updateScreen() = 0;
 
@@ -1283,6 +1320,17 @@ public:
 	 */
 	virtual Common::UpdateManager *getUpdateManager() {
 		return _updateManager;
+	}
+#endif
+
+#if defined(USE_SYSDIALOGS)
+	/**
+	 * Returns the DialogManager, used to handle system dialogs.
+	 *
+	 * @return the DialogManager for the current architecture
+	 */
+	virtual Common::DialogManager *getDialogManager() {
+		return _dialogManager;
 	}
 #endif
 

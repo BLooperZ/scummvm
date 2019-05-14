@@ -30,7 +30,7 @@ namespace MutationOfJB {
 
 class ImageWidget : public Widget {
 public:
-	ImageWidget(Gui &gui, const Common::Rect &area, const Graphics::Surface &image);
+	ImageWidget(GuiScreen &gui, const Common::Rect &area, const Graphics::Surface &image);
 
 protected:
 	virtual void draw(Graphics::ManagedSurface &surface) override;

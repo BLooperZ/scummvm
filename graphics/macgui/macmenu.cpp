@@ -183,7 +183,7 @@ static Common::U32String readUnicodeString(Common::SeekableReadStream *stream) {
 
 
 MacMenu *MacMenu::createMenuFromPEexe(Common::PEResources &exe, MacWindowManager *wm) {
-	Common::SeekableReadStream *menuData = exe.getResource(Common::kPEMenu, 128);
+	Common::SeekableReadStream *menuData = exe.getResource(Common::kWinMenu, 128);
 	if (!menuData)
 		return nullptr;
 
@@ -391,14 +391,11 @@ const Font *MacMenu::getMenuFont() {
 	return _wm->_fontMan->getFont(Graphics::MacFont(kMacFontChicago, 12));
 }
 
-const char *MacMenu::getAcceleratorString(MacMenuSubItem *item, const char *prefix) {
-	static char res[20];
-	*res = 0;
+const Common::String MacMenu::getAcceleratorString(MacMenuSubItem *item, const char *prefix) {
+	if (item->shortcut == 0)
+		return Common::String();
 
-	if (item->shortcut != 0)
-		sprintf(res, "%s%c%c", prefix, (_wm->_fontMan->hasBuiltInFonts() ? '^' : '\x11'), item->shortcut);
-
-	return res;
+	return Common::String::format("%s%c%c", prefix, (_wm->_fontMan->hasBuiltInFonts() ? '^' : '\x11'), item->shortcut);
 }
 
 int MacMenu::calculateMenuWidth(MacMenuItem *menu) {

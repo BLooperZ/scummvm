@@ -140,6 +140,7 @@ void GfxView::initData(GuiResourceId resourceId) {
 	switch (curViewType) {
 	case kViewEga: // SCI0 (and Amiga 16 colors)
 		isEGA = true;
+		// fall through
 	case kViewAmiga: // Amiga ECS (32 colors)
 	case kViewAmiga64: // Amiga AGA (64 colors)
 	case kViewVga: // View-format SCI1
@@ -285,10 +286,15 @@ void GfxView::initData(GuiResourceId resourceId) {
 
 			seekEntry = loopData[0];
 			if (seekEntry != 255) {
-				if (seekEntry >= loopCount)
-					error("Bad loop-pointer in sci 1.1 view");
 				_loop[loopNo].mirrorFlag = true;
-				loopData = _resource->subspan(headerSize + (seekEntry * loopSize));
+
+				// use the root loop for mirroring. this handles rare loops that
+				//  mirror loops that mirror loops. (FPFP view 844, bug #10953)
+				do {
+					if (seekEntry >= loopCount)
+						error("Bad loop-pointer in sci 1.1 view");
+					loopData = _resource->subspan(headerSize + (seekEntry * loopSize));
+				} while ((seekEntry = loopData[0]) != 255);
 			} else {
 				_loop[loopNo].mirrorFlag = false;
 			}
@@ -578,6 +584,7 @@ void unpackCelData(const SciSpan<const byte> &inBuffer, SciSpan<byte> &celBitmap
 			switch (curByte & 0xC0) {
 			case 0x40: // copy bytes as is (In copy case, runLength can go up to 127 i.e. pixel & 0x40). Fixes bug #3135872.
 				runLength += 64;
+				// fall through
 			case 0x00: // copy bytes as-is
 				if (!literalPos) {
 					memcpy(outPtr + pixelNr,        rlePtr, MIN<uint16>(runLength, pixelCount - pixelNr));
@@ -774,7 +781,7 @@ void GfxView::unditherBitmap(SciSpan<byte> &bitmapPtr, int16 width, int16 height
 }
 
 void GfxView::draw(const Common::Rect &rect, const Common::Rect &clipRect, const Common::Rect &clipRectTranslated,
-			int16 loopNo, int16 celNo, byte priority, uint16 EGAmappingNr, bool upscaledHires) {
+			int16 loopNo, int16 celNo, byte priority, uint16 EGAmappingNr, bool upscaledHires, uint16 scaleSignal) {
 	const Palette *palette = _embeddedPal ? &_viewPalette : &_palette->_sysPalette;
 	const CelInfo *celInfo = getCelInfo(loopNo, celNo);
 	const SciSpan<const byte> &bitmap = getBitmap(loopNo, celNo);
@@ -830,6 +837,9 @@ void GfxView::draw(const Common::Rect &rect, const Common::Rect &clipRect, const
 						// SCI16 remapping (QFG4 demo)
 						if (g_sci->_gfxRemap16 && g_sci->_gfxRemap16->isRemapped(outputColor))
 							outputColor = g_sci->_gfxRemap16->remapColor(outputColor, _screen->getVisual(x2, y2));
+						// SCI11+ remapping (Catdate)
+						if ((scaleSignal & 0x200) && g_sci->_gfxRemap16)
+							outputColor = g_sci->_gfxRemap16->remapColor(253, outputColor);
 						_screen->putPixel(x2, y2, drawMask, outputColor, priority, 0);
 					}
 				}
@@ -844,7 +854,7 @@ void GfxView::draw(const Common::Rect &rect, const Common::Rect &clipRect, const
  * matter because the scaled cel rect is definitely the same as in sierra sci.
  */
 void GfxView::drawScaled(const Common::Rect &rect, const Common::Rect &clipRect, const Common::Rect &clipRectTranslated,
-			int16 loopNo, int16 celNo, byte priority, int16 scaleX, int16 scaleY) {
+			int16 loopNo, int16 celNo, byte priority, int16 scaleX, int16 scaleY, uint16 scaleSignal) {
 	const Palette *palette = _embeddedPal ? &_viewPalette : &_palette->_sysPalette;
 	const CelInfo *celInfo = getCelInfo(loopNo, celNo);
 	const SciSpan<const byte> &bitmap = getBitmap(loopNo, celNo);
@@ -921,6 +931,9 @@ void GfxView::drawScaled(const Common::Rect &rect, const Common::Rect &clipRect,
 				// SCI16 remapping (QFG4 demo)
 				if (g_sci->_gfxRemap16 && g_sci->_gfxRemap16->isRemapped(outputColor))
 					outputColor = g_sci->_gfxRemap16->remapColor(outputColor, _screen->getVisual(x2, y2));
+				// SCI11+ remapping (Catdate)
+				if ((scaleSignal & 0x200) && g_sci->_gfxRemap16)
+					outputColor = g_sci->_gfxRemap16->remapColor(253, outputColor);
 				_screen->putPixel(x2, y2, drawMask, outputColor, priority, 0);
 			}
 		}

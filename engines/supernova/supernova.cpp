@@ -80,10 +80,12 @@ SupernovaEngine::SupernovaEngine(OSystem *syst)
 	, _sound(nullptr)
 	, _resMan(nullptr)
 	, _screen(nullptr)
-	, _delay(33)
-	, _textSpeed(kTextSpeed[2])
 	, _allowLoadGame(true)
-	, _allowSaveGame(true) {
+	, _allowSaveGame(true)
+	, _sleepAutoSave(nullptr)
+	, _sleepAuoSaveVersion(-1)
+	, _delay(33)
+	, _textSpeed(kTextSpeed[2]) {
 	if (ConfMan.hasKey("textspeed"))
 		_textSpeed = ConfMan.getInt("textspeed");
 
@@ -93,6 +95,7 @@ SupernovaEngine::SupernovaEngine(OSystem *syst)
 SupernovaEngine::~SupernovaEngine() {
 	DebugMan.clearAllDebugChannels();
 
+	delete _sleepAutoSave;
 	delete _console;
 	delete _gm;
 	delete _sound;
@@ -133,7 +136,7 @@ void SupernovaEngine::init() {
 	_resMan = new ResourceManager();
 	_sound = new Sound(_mixer, _resMan);
 	_gm = new GameManager(this, _sound);
-	_screen = new Screen(this, _gm, _resMan);
+	_screen = new Screen(this, _resMan);
 	_console = new Console(this, _gm);
 
 	setTotalPlayTime(0);
@@ -172,8 +175,7 @@ Common::Error SupernovaEngine::loadGameStrings() {
 	// strings anyway (actually the engine will even refuse to start).
 	Common::File f;
 	if (!f.open(SUPERNOVA_DAT)) {
-		Common::String msg = Common::String::format(_("Unable to locate the '%s' engine data file."), SUPERNOVA_DAT);
-		GUIErrorMessage(msg);
+		GUIErrorMessageFormat(_("Unable to locate the '%s' engine data file."), SUPERNOVA_DAT);
 		return Common::kReadingFailed;
 	}
 
@@ -182,17 +184,15 @@ Common::Error SupernovaEngine::loadGameStrings() {
 	id[4] = lang[4] = '\0';
 	f.read(id, 3);
 	if (strncmp(id, "MSN", 3) != 0) {
-		Common::String msg = Common::String::format(_("The '%s' engine data file is corrupt."), SUPERNOVA_DAT);
-		GUIErrorMessage(msg);
+		GUIErrorMessageFormat(_("The '%s' engine data file is corrupt."), SUPERNOVA_DAT);
 		return Common::kReadingFailed;
 	}
 
 	int version = f.readByte();
 	if (version != SUPERNOVA_DAT_VERSION) {
-		Common::String msg = Common::String::format(
+		GUIErrorMessageFormat(
 			_("Incorrect version of the '%s' engine data file found. Expected %d but got %d."),
 			SUPERNOVA_DAT, SUPERNOVA_DAT_VERSION, version);
-		GUIErrorMessage(msg);
 		return Common::kReadingFailed;
 	}
 
@@ -217,8 +217,7 @@ Common::Error SupernovaEngine::loadGameStrings() {
 	}
 
 	Common::Language l = Common::parseLanguage(cur_lang);
-	Common::String msg = Common::String::format(_("Unable to locate the text for %s language in '%s' engine data file."), Common::getLanguageDescription(l), SUPERNOVA_DAT);
-	GUIErrorMessage(msg);
+	GUIErrorMessageFormat(_("Unable to locate the text for %s language in '%s' engine data file."), Common::getLanguageDescription(l), SUPERNOVA_DAT);
 	return Common::kReadingFailed;
 }
 
@@ -245,7 +244,17 @@ void SupernovaEngine::playSound(MusicId index) {
 }
 
 void SupernovaEngine::renderImage(int section) {
+	if (section > 128)
+		_gm->_currentRoom->setSectionVisible(section - 128, false);
+	else
+		_gm->_currentRoom->setSectionVisible(section, true);
+
 	_screen->renderImage(section);
+}
+
+void SupernovaEngine::renderImage(ImageId id, bool removeImage) {
+	_gm->_currentRoom->setSectionVisible(_screen->getImageInfo(id)->section, !removeImage);
+	_screen->renderImage(id, removeImage);
 }
 
 bool SupernovaEngine::setCurrentImage(int filenumber) {
@@ -268,14 +277,17 @@ void SupernovaEngine::renderRoom(Room &room) {
 }
 
 void SupernovaEngine::renderMessage(const char *text, MessagePosition position) {
+	_gm->_messageDuration = (Common::strnlen(text, 512) + 20) * _textSpeed / 10;
 	_screen->renderMessage(text, position);
 }
 
 void SupernovaEngine::renderMessage(const Common::String &text, MessagePosition position) {
+	_gm->_messageDuration = (text.size() + 20) * _textSpeed / 10;
 	_screen->renderMessage(text, position);
 }
 
 void SupernovaEngine::renderMessage(StringId stringId, MessagePosition position, Common::String var1, Common::String var2) {
+	_gm->_messageDuration = (getGameString(stringId).size() + 20) * _textSpeed / 10;
 	_screen->renderMessage(stringId, position, var1, var2);
 }
 
@@ -326,6 +338,7 @@ void SupernovaEngine::renderBox(int x, int y, int width, int height, byte color)
 void SupernovaEngine::renderBox(const GuiElement &guiElement) {
 	_screen->renderBox(guiElement);
 }
+
 void SupernovaEngine::paletteBrightness() {
 	_screen->paletteBrightness();
 }
@@ -335,7 +348,8 @@ void SupernovaEngine::paletteFadeOut() {
 }
 
 void SupernovaEngine::paletteFadeIn() {
-	_screen->paletteFadeIn();
+	_gm->roomBrightness();
+	_screen->paletteFadeIn(_gm->_roomBrightness);
 }
 
 void SupernovaEngine::setColor63(byte value) {
@@ -474,9 +488,45 @@ Common::Error SupernovaEngine::saveGameState(int slot, const Common::String &des
 	return (saveGame(slot, desc) ? Common::kNoError : Common::kWritingFailed);
 }
 
+bool SupernovaEngine::serialize(Common::WriteStream *out) {
+	if (!_gm->serialize(out))
+		return false;
+	out->writeByte(_screen->getGuiBrightness());
+	out->writeByte(_screen->getViewportBrightness());
+	return true;
+}
+
+bool SupernovaEngine::deserialize(Common::ReadStream *in, int version) {
+	if (!_gm->deserialize(in, version))
+		return false;
+	if (version >= 5) {
+		_screen->setGuiBrightness(in->readByte());
+		_screen->setViewportBrightness(in->readByte());
+	} else {
+		_screen->setGuiBrightness(255);
+		_screen->setViewportBrightness(255);
+	}
+	return true;
+}
+
 bool SupernovaEngine::loadGame(int slot) {
 	if (slot < 0)
 		return false;
+
+	// Make sure no message is displayed as this would otherwise delay the
+	// switch to the new location until a mouse click.
+	removeMessage();
+
+	if (slot == kSleepAutosaveSlot) {
+		if (_sleepAutoSave != nullptr && deserialize(_sleepAutoSave, _sleepAuoSaveVersion)) {
+			// We no longer need the sleep autosave
+			delete _sleepAutoSave;
+			_sleepAutoSave = nullptr;
+			return true;
+		}
+		// Old version used to save it literally in the kSleepAutosaveSlot, so
+		// continue to try to load it from there.
+	}
 
 	Common::String filename = Common::String::format("msn_save.%03d", slot);
 	Common::InSaveFile *savefile = _saveFileMan->openForLoading(filename);
@@ -498,23 +548,29 @@ bool SupernovaEngine::loadGame(int slot) {
 		return false; //Common::kUnknownError;
 	}
 
-	// Make sure no message is displayed as this would otherwise delay the
-	// switch to the new location until a mouse click.
-	removeMessage();
-
 	int descriptionSize = savefile->readSint16LE();
 	savefile->skip(descriptionSize);
 	savefile->skip(6);
 	setTotalPlayTime(savefile->readUint32LE() * 1000);
 	Graphics::skipThumbnail(*savefile);
-	_gm->deserialize(savefile, saveVersion);
+	if (!deserialize(savefile, saveVersion)) {
+		delete savefile;
+		return false;
+	};
 
-	if (saveVersion >= 5) {
-		_screen->setGuiBrightness(savefile->readByte());
-		_screen->setViewportBrightness(savefile->readByte());
-	} else {
-		_screen->setGuiBrightness(255);
-		_screen->setViewportBrightness(255);
+	// With version 9 onward the sleep auto-save is save at the end of a normal save.
+	delete _sleepAutoSave;
+	_sleepAutoSave = nullptr;
+	if (saveVersion >= 9) {
+		_sleepAuoSaveVersion = saveVersion;
+		byte hasAutoSave = savefile->readByte();
+		if (hasAutoSave) {
+			_sleepAutoSave = new Common::MemoryReadWriteStream(DisposeAfterUse::YES);
+			uint nb;
+			char buf[4096];
+			while ((nb = savefile->read(buf, 4096)) > 0)
+				_sleepAutoSave->write(buf, nb);
+		}
 	}
 
 	delete savefile;
@@ -525,6 +581,14 @@ bool SupernovaEngine::loadGame(int slot) {
 bool SupernovaEngine::saveGame(int slot, const Common::String &description) {
 	if (slot < 0)
 		return false;
+
+	if (slot == kSleepAutosaveSlot) {
+		delete _sleepAutoSave;
+		_sleepAutoSave = new Common::MemoryReadWriteStream(DisposeAfterUse::YES);
+		_sleepAuoSaveVersion = SAVEGAME_VERSION;
+		serialize(_sleepAutoSave);
+		return true;
+	}
 
 	Common::String filename = Common::String::format("msn_save.%03d", slot);
 	Common::OutSaveFile *savefile = _saveFileMan->openForSaving(filename);
@@ -545,10 +609,14 @@ bool SupernovaEngine::saveGame(int slot, const Common::String &description) {
 	savefile->writeUint16LE(saveTime);
 	savefile->writeUint32LE(getTotalPlayTime() / 1000);
 	Graphics::saveThumbnail(*savefile);
-	_gm->serialize(savefile);
+	serialize(savefile);
 
-	savefile->writeByte(_screen->getGuiBrightness());
-	savefile->writeByte(_screen->getViewportBrightness());
+	if (_sleepAutoSave == nullptr)
+		savefile->writeByte(0);
+	else {
+		savefile->writeByte(1);
+		savefile->write(_sleepAutoSave->getData(), _sleepAutoSave->size());
+	}
 
 	savefile->finalize();
 	delete savefile;

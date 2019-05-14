@@ -10,6 +10,7 @@ MODULE_OBJS = \
 	ambient_sounds.o \
 	archive.o \
 	aud_stream.o \
+	audio_cache.o \
 	audio_mixer.o \
 	audio_player.o \
 	audio_speech.o \
@@ -244,6 +245,7 @@ MODULE_OBJS = \
 	shape.o \
 	slice_animations.o \
 	slice_renderer.o \
+	subtitles.o \
 	suspects_database.o \
 	text_resource.o \
 	time.o \
@@ -257,7 +259,9 @@ MODULE_OBJS = \
 	ui/kia_section_crimes.o \
 	ui/kia_section_diagnostic.o \
 	ui/kia_section_help.o \
+	ui/kia_section_load.o \
 	ui/kia_section_pogo.o \
+	ui/kia_section_save.o \
 	ui/kia_section_settings.o \
 	ui/kia_section_suspects.o \
 	ui/kia_shapes.o \

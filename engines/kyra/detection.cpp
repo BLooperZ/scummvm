@@ -20,12 +20,12 @@
  *
  */
 
-#include "kyra/kyra_lok.h"
-#include "kyra/lol.h"
-#include "kyra/kyra_hof.h"
-#include "kyra/kyra_mr.h"
-#include "kyra/eob.h"
-#include "kyra/darkmoon.h"
+#include "kyra/engine/kyra_lok.h"
+#include "kyra/engine/lol.h"
+#include "kyra/engine/kyra_hof.h"
+#include "kyra/engine/kyra_mr.h"
+#include "kyra/engine/eob.h"
+#include "kyra/engine/darkmoon.h"
 
 #include "common/config-manager.h"
 #include "common/system.h"
@@ -130,6 +130,18 @@ const ADExtraGuiOptionsMap gameGuiOptions[] = {
 			true
 		}
 	},
+
+	{
+		GAMEOPTION_EOB_MOUSESWAP,
+		{
+			// I18N: L/R stands for Left/Right
+			_s("Fight Button L/R Swap"),
+			_s("Left button to attack, right button to pick up items"),
+			"mousebtswap",
+			false
+		}
+	},
+
 #endif
 
 	AD_EXTRA_GUI_OPTIONS_TERMINATOR
@@ -206,6 +218,10 @@ bool KyraMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGame
 			flags.lang = Common::EN_ANY;
 	}
 
+#ifndef USE_RGB_COLOR
+	flags.useHiColorMode = false;
+#endif
+
 	switch (flags.gameID) {
 	case Kyra::GI_KYRA1:
 		*engine = new Kyra::KyraEngine_LoK(syst, flags);
@@ -228,6 +244,8 @@ bool KyraMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGame
 	case Kyra::GI_EOB2:
 		 if (Common::parseRenderMode(ConfMan.get("render_mode")) == Common::kRenderEGA)
 			 flags.useHiRes = true;
+		 if (platform == Common::kPlatformFMTowns && !flags.useHiColorMode)
+			 error("EOB II FM-TOWNS requires support of 16bit color modes which has not been activated in your ScummVM build (The 'USE_RGB_COLOR' define has not been set).");
 		*engine = new Kyra::DarkMoonEngine(syst, flags);
 		break;
 #endif // ENABLE_EOB

@@ -33,11 +33,11 @@
 
 namespace BladeRunner {
 
-ActorClues::ActorClues(BladeRunnerEngine *vm, int cluesType) {
+ActorClues::ActorClues(BladeRunnerEngine *vm, int cluesLimit) {
 	_vm = vm;
 	_count = 0;
 	_maxCount = 0;
-	switch (cluesType) {
+	switch (cluesLimit) {
 	case 4:
 		_maxCount = _vm->_gameInfo->getClueCount();
 		break;
@@ -66,16 +66,25 @@ ActorClues::ActorClues(BladeRunnerEngine *vm, int cluesType) {
 
 void ActorClues::acquire(int clueId, bool flag2, int fromActorId) {
 	int clueIndex = findClueIndex(clueId);
-	_clues[clueIndex].flags |= 0x01;
-	_clues[clueIndex].flags = (_clues[clueIndex].flags & ~0x02) | ((flag2 << 1) & 0x02);
-	_clues[clueIndex].fromActorId = fromActorId;
-
-	debug("Actor acquired clue: \"%s\" from %d", _vm->_crimesDatabase->getClueText(clueId), fromActorId);
+	if (clueIndex == -1) { // prevent assertion fault
+	//	debug("Actor could not acquire clue: \"%s\" from %d", _vm->_crimesDatabase->getClueText(clueId), fromActorId);
+		return;
+	} else {
+		_clues[clueIndex].flags |= 0x01;
+		_clues[clueIndex].flags = (_clues[clueIndex].flags & ~0x02) | ((flag2 << 1) & 0x02);
+		_clues[clueIndex].fromActorId = fromActorId;
+	// debug("Actor acquired clue: \"%s\" from %d", _vm->_crimesDatabase->getClueText(clueId), fromActorId);
+	}
 }
 
 void ActorClues::lose(int clueId) {
 	int clueIndex = findClueIndex(clueId);
-	_clues[clueIndex].flags = 0;
+	if (clueIndex == -1) { // prevent assertion fault
+	//	debug("Actor could not lose clue: \"%s\"", _vm->_crimesDatabase->getClueText(clueId));
+		return;
+	} else {
+		_clues[clueIndex].flags = 0;
+	}
 }
 
 bool ActorClues::isAcquired(int clueId) const {
@@ -83,11 +92,7 @@ bool ActorClues::isAcquired(int clueId) const {
 	if (clueIndex == -1) {
 		return false;
 	}
-#if BLADERUNNER_DEBUG_GAME
-	return true;
-#else
 	return _clues[clueIndex].flags & 0x01;
-#endif
 }
 
 int ActorClues::getWeight(int clueId) const {
@@ -110,14 +115,16 @@ int ActorClues::getModifier(int actorId, int otherActorId, int clueId) {
 	} else {
 		modifier1 = 0;
 	}
-	modifier2 = 0;
-	modifier3 = _vm->_aiScripts->callGetFriendlinessModifierIfGetsClue(otherActorId, actorId, clueId);
 
+	modifier2 = 0;
 	for (int i = 0; i < (int)_vm->_gameInfo->getActorCount(); i++) {
 		if (i != actorId && i != otherActorId) {
 			modifier2 += (friendliness - 50) * _vm->_aiScripts->callGetFriendlinessModifierIfGetsClue(i, otherActorId, clueId) / 100;
 		}
 	}
+
+	modifier3 = _vm->_aiScripts->callGetFriendlinessModifierIfGetsClue(otherActorId, actorId, clueId);
+
 	modifier4 = _vm->_rnd.getRandomNumberRng(0, (100 - actor->getIntelligence()) / 10);
 
 	if (_vm->_rnd.getRandomNumberRng(0, 1) == 1) {
@@ -160,14 +167,14 @@ void ActorClues::acquireCluesByRelations(int actorId, int otherActorId) {
 		uint avgParameters = (otherActor->getHonesty() + otherActor->getIntelligence() + actor->getFriendlinessToOther(otherActorId)) / 3;
 		int clue1count = avgParameters * count1 / 100;
 
-		if (avgParameters >= 50 && !clue1count && count1 == 1) {
+		if (avgParameters >= 50 && clue1count == 0 && count1 == 1) {
 			clue1count = 1;
 		}
 
 		avgParameters = (actor->getHonesty() + actor->getIntelligence() + otherActor->getFriendlinessToOther(actorId)) / 3;
 		int clue2count = avgParameters * count2 / 100;
 
-		if (avgParameters >= 50 && !clue2count && count2 == 1) {
+		if (avgParameters >= 50 && clue2count == 0 && count2 == 1) {
 			clue2count = 1;
 		}
 
@@ -333,8 +340,6 @@ int ActorClues::findClueIndex(int clueId) const {
 void ActorClues::add(int actorId, int clueId, int weight, bool acquired, bool unknownFlag, int fromActorId) {
 	assert(_count < _maxCount);
 
-	//debug("Actor %d added clue: \"%s\" from %d", actorId, _vm->_crimesDatabase->getClueText(clueId), fromActorId);
-
 	_clues[_count].clueId = clueId;
 	_clues[_count].weight = weight;
 
@@ -346,10 +351,14 @@ void ActorClues::add(int actorId, int clueId, int weight, bool acquired, bool un
 	++_count;
 }
 
+bool ActorClues::exists(int clueId) const {
+	return findClueIndex(clueId) != -1;
+}
+
 void ActorClues::remove(int index) {
-	if (_vm->_crimesDatabase) {
-		debug("Actor removed clue: \"%s\"", _vm->_crimesDatabase->getClueText(_clues[index].clueId));
-	}
+	// if (_vm->_crimesDatabase) {
+	// 	debug("Actor removed clue: \"%s\"", _vm->_crimesDatabase->getClueText(_clues[index].clueId));
+	// }
 
 	_clues[index].clueId      = -1;
 	_clues[index].weight      = 0;
@@ -367,7 +376,7 @@ void ActorClues::remove(int index) {
 void ActorClues::save(SaveFileWriteStream &f) {
 	f.writeInt(_count);
 	f.writeInt(_maxCount);
-	for (int i = 0; i < _count; ++i) {
+	for (int i = 0; i < _maxCount; ++i) {
 		Clue &c = _clues[i];
 		f.writeInt(c.clueId);
 		f.writeInt(c.weight);
@@ -387,7 +396,7 @@ void ActorClues::load(SaveFileReadStream &f) {
 	_maxCount = f.readInt();
 	_clues.clear();
 	_clues.resize(_maxCount);
-	for (int i = 0; i < _count; ++i) {
+	for (int i = 0; i < _maxCount; ++i) {
 		Clue &c = _clues[i];
 		c.clueId = f.readInt();
 		c.weight = f.readInt();
@@ -400,10 +409,6 @@ void ActorClues::load(SaveFileReadStream &f) {
 		c.field8 = f.readInt();
 		c.flags = f.readByte();
 	}
-}
-
-bool ActorClues::exists(int clueId) const {
-	return findClueIndex(clueId) != -1;
 }
 
 } // End of namespace BladeRunner

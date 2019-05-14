@@ -43,12 +43,11 @@ class View;
 class Lights;
 class ZBuffer;
 
-//TODO: split this into two components as it is in original game: universal vqa player, blade runner player functionality
-
 class VQAPlayer {
 	friend class Debugger;
 
 	BladeRunnerEngine           *_vm;
+	Common::String               _name;
 	Common::SeekableReadStream  *_s;
 	VQADecoder                   _decoder;
 	Audio::QueuingAudioStream   *_audioStream;
@@ -77,8 +76,9 @@ class VQAPlayer {
 
 public:
 
-	VQAPlayer(BladeRunnerEngine *vm, Graphics::Surface *surface)
+	VQAPlayer(BladeRunnerEngine *vm, Graphics::Surface *surface, const Common::String &name)
 		: _vm(vm),
+		  _name(name),
 		  _s(nullptr),
 		  _surface(surface),
 		  _decoder(),
@@ -103,10 +103,10 @@ public:
 		close();
 	}
 
-	bool open(const Common::String &name);
+	bool open();
 	void close();
 
-	int  update(bool forceDraw = false, bool advanceFrame = true, Graphics::Surface *customSurface = nullptr);
+	int  update(bool forceDraw = false, bool advanceFrame = true, bool useTime = true, Graphics::Surface *customSurface = nullptr);
 	void updateZBuffer(ZBuffer *zbuffer);
 	void updateView(View *view);
 	void updateScreenEffects(ScreenEffects *screenEffects);

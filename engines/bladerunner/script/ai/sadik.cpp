@@ -26,7 +26,7 @@ namespace BladeRunner {
 
 AIScriptSadik::AIScriptSadik(BladeRunnerEngine *vm) : AIScriptBase(vm) {
 	_flag = 0;
-	_var1 = 0;
+	_nextSoundId = -1; // changed from original (0) to be more clear that this is an invalid sfx id
 	_var2 = 0;
 	_var3 = 0;
 	_var4 = 1;
@@ -39,49 +39,60 @@ void AIScriptSadik::Initialize() {
 	_animationNext = 0;
 
 	_flag = 0;
-	_var1 = 0;
+	_nextSoundId = -1; // changed from original (0) to be more clear that this is an invalid sfx id
 	_var2 = 0;
 	_var3 = 0;
 	_var4 = 1;
 
 	Actor_Put_In_Set(kActorSadik, kSetFreeSlotA);
 	Actor_Set_At_Waypoint(kActorSadik, 33, 0);
-	Actor_Set_Goal_Number(kActorSadik, 100);
+	Actor_Set_Goal_Number(kActorSadik, kGoalSadikDefaut);
 }
 
 bool AIScriptSadik::Update() {
-	if (Global_Variable_Query(kVariableChapter) != 2 || Player_Query_Current_Scene() != 10 || Game_Flag_Query(391)) {
-		if (_var1) {
-			Sound_Play(_var1, 100, 0, 0, 50);
-			_var1 = 0;
-		}
-		if (Global_Variable_Query(kVariableChapter) == 3 && Actor_Query_Goal_Number(kActorSadik) < 200) {
-			Actor_Set_Goal_Number(kActorSadik, 200);
-		}
-		if (Global_Variable_Query(kVariableChapter) == 5 && Actor_Query_Goal_Number(kActorSadik) < 400) {
-			Actor_Set_Goal_Number(kActorSadik, 400);
-		}
-		if (Actor_Query_Goal_Number(kActorSadik) == 411) {
-			if (Game_Flag_Query(657)) {
-				Actor_Set_Goal_Number(kActorSadik, 412);
-			}
-		}
-		return false;
-	} else {
-		Actor_Set_Goal_Number(kActorSadik, 101);
-		Actor_Set_Targetable(kActorSadik, 1);
-		Game_Flag_Set(391);
-		Game_Flag_Set(406);
+	if ( Global_Variable_Query(kVariableChapter) == 2
+	 &&  Player_Query_Current_Scene() == kSceneBB09
+	 && !Game_Flag_Query(kFlagBB09SadikRun)
+	) {
+		Actor_Set_Goal_Number(kActorSadik, kGoalSadikRunFromBB09);
+		Actor_Set_Targetable(kActorSadik, true);
+		Game_Flag_Set(kFlagBB09SadikRun);
+		Game_Flag_Set(kFlagUnused406);
 		return true;
 	}
+
+	if (_nextSoundId != -1) { // changed from original (0) to be more clear that this is an invalid sfx id
+		Sound_Play(_nextSoundId, 100, 0, 0, 50);
+		_nextSoundId = -1;   // changed from original (0) to be more clear that this is an invalid sfx id
+	}
+
+	if (Global_Variable_Query(kVariableChapter) == 3
+	 && Actor_Query_Goal_Number(kActorSadik) < 200
+	) {
+		Actor_Set_Goal_Number(kActorSadik, 200);
+	}
+
+	if (Global_Variable_Query(kVariableChapter) == 5
+	 && Actor_Query_Goal_Number(kActorSadik) < 400
+	) {
+		Actor_Set_Goal_Number(kActorSadik, 400);
+	}
+
+	if (Actor_Query_Goal_Number(kActorSadik) == 411) {
+		if (Game_Flag_Query(kFlagNotUsed657)) {
+			Actor_Set_Goal_Number(kActorSadik, 412);
+		}
+	}
+	return false;
 }
 
 void AIScriptSadik::TimerExpired(int timer) {
-	if (!timer) {
-		AI_Countdown_Timer_Reset(kActorSadik, 0);
+	if (timer == kActorTimerAIScriptCustomTask0) {
+		AI_Countdown_Timer_Reset(kActorSadik, kActorTimerAIScriptCustomTask0);
 
+		// goals 303, 304 and 305 are never set,  cut out part of game?
 		switch (Actor_Query_Goal_Number(kActorSadik)) {
-		case 302:
+		case kGoalSadikUG18Decide:
 			Actor_Set_Goal_Number(kActorSadik, 305);
 			break;
 
@@ -89,8 +100,8 @@ void AIScriptSadik::TimerExpired(int timer) {
 			Actor_Set_Goal_Number(kActorSadik, 305);
 			break;
 
-		case 307:
-			Actor_Set_Goal_Number(kActorSadik, 308);
+		case kGoalSadikUG18PrepareShootMcCoy:
+			Actor_Set_Goal_Number(kActorSadik, kGoalSadikUG18ShootMcCoy);
 			break;
 		}
 	}
@@ -98,20 +109,20 @@ void AIScriptSadik::TimerExpired(int timer) {
 
 void AIScriptSadik::CompletedMovementTrack() {
 	switch (Actor_Query_Goal_Number(kActorSadik)) {
-	case 301:
-		Actor_Set_Goal_Number(kActorSadik, 302);
+	case kGoalSadikRunFromBB09:
+		Actor_Set_Goal_Number(kActorSadik, kGoalSadikBB11Wait);
 		break;
 
-	case 101:
-		Actor_Set_Goal_Number(kActorSadik, 102);
+	case kGoalSadikBB11CatchMcCoy:
+		Actor_Set_Goal_Number(kActorSadik, kGoalSadikBB11KnockOutMcCoy);
 		break;
 
-	case 104:
-		Actor_Set_Goal_Number(kActorSadik, 105);
+	case kGoalSadikBB11KnockOutMcCoy:
+		Actor_Set_Goal_Number(kActorSadik, kGoalSadikBB11KickMcCoy);
 		break;
 
-	case 105:
-		Actor_Set_Goal_Number(kActorSadik, 106);
+	case kGoalSadikUG18Move:
+		Actor_Set_Goal_Number(kActorSadik, kGoalSadikUG18Decide);
 		break;
 
 	default:
@@ -126,8 +137,8 @@ void AIScriptSadik::ReceivedClue(int clueId, int fromActorId) {
 }
 
 void AIScriptSadik::ClickedByPlayer() {
-	if (Actor_Query_Goal_Number(kActorSadik) == 599) {
-		Actor_Face_Actor(kActorMcCoy, kActorSadik, 1);
+	if (Actor_Query_Goal_Number(kActorSadik) == kGoalSadikGone) {
+		Actor_Face_Actor(kActorMcCoy, kActorSadik, true);
 		Actor_Says(kActorMcCoy, 8580, 16);
 	}
 }
@@ -149,9 +160,11 @@ void AIScriptSadik::OtherAgentEnteredCombatMode(int otherActorId, int combatMode
 }
 
 void AIScriptSadik::ShotAtAndMissed() {
-	if (Actor_Query_Goal_Number(kActorSadik) == 414 || Actor_Query_Goal_Number(kActorSadik) == 416) {
-		Game_Flag_Set(714);
-		if (Actor_Query_Which_Set_In(kActorSadik) != 48) {
+	if (Actor_Query_Goal_Number(kActorSadik) == 414
+	 || Actor_Query_Goal_Number(kActorSadik) == kGoalSadikUG18NeedsReactorCoreFromMcCoy
+	) {
+		Game_Flag_Set(kFlagMcCoyAttackedReplicants);
+		if (Actor_Query_Which_Set_In(kActorSadik) != kSetKP07) {
 			Actor_Set_Goal_Number(kActorSadik, 418);
 			Scene_Exits_Disable();
 		}
@@ -159,49 +172,88 @@ void AIScriptSadik::ShotAtAndMissed() {
 }
 
 bool AIScriptSadik::ShotAtAndHit() {
-	if (Actor_Query_Goal_Number(kActorSadik) == 301) {
-		if (Game_Flag_Query(48)) {
+#if BLADERUNNER_ORIGINAL_BUGS // Sadik killed in BB09 dead end bug fix
+#else
+	if (Actor_Query_Goal_Number(kActorSadik) == kGoalSadikRunFromBB09) {
+		// Like Izo's ShotAtAndHit() and the code below for kGoalSadikUG18Move
+		// this will keep resetting Sadik's health to avoid killing him
+		// Still, this is lowering Sadik's health from 80 (when Replicant) and 50 (when Human)
+		if (Game_Flag_Query(kFlagSadikIsReplicant)) {
 			Actor_Set_Health(kActorSadik, 60, 60);
 		} else {
 			Actor_Set_Health(kActorSadik, 40, 40);
 		}
 		return true;
-	} else {
-		if (Actor_Query_Goal_Number(kActorSadik) == 414 || Actor_Query_Goal_Number(kActorSadik) == 416) {
-			Game_Flag_Set(714);
-			if (Actor_Query_Which_Set_In(kActorSadik) != 48) {
-				Actor_Set_Goal_Number(kActorSadik, 418);
-				Scene_Exits_Disable();
-			}
-		}
-		return false;
 	}
+#endif // BLADERUNNER_ORIGINAL_BUGS
+	if (Actor_Query_Goal_Number(kActorSadik) == kGoalSadikUG18Move) {
+		// this lowers Sadik's original health but makes it impossible to kill him here (UG18)
+		if (Game_Flag_Query(kFlagSadikIsReplicant)) {
+#if BLADERUNNER_ORIGINAL_BUGS
+			Actor_Set_Health(kActorSadik, 60, 60);
+#else
+			// Sadik killed in BB09 dead end bug fix
+			if (Actor_Query_Current_HP(kActorSadik) == 60) { // shot also at Bradbury, so lower his health further
+				Actor_Set_Health(kActorSadik, 50, 50);
+			} else {
+				Actor_Set_Health(kActorSadik, 60, 60);
+			}
+#endif
+		} else {
+#if BLADERUNNER_ORIGINAL_BUGS
+			Actor_Set_Health(kActorSadik, 40, 40);
+#else
+			// Sadik killed in BB09 dead end bug fix
+			if (Actor_Query_Current_HP(kActorSadik) == 40) { // shot also at Bradbury, so lower his health further
+				Actor_Set_Health(kActorSadik, 30, 30);
+			} else {
+				Actor_Set_Health(kActorSadik, 40, 40);
+			}
+#endif
+		}
+		return true;
+	}
+
+	if (Actor_Query_Goal_Number(kActorSadik) == 414
+	 || Actor_Query_Goal_Number(kActorSadik) == kGoalSadikUG18NeedsReactorCoreFromMcCoy
+	) {
+		Game_Flag_Set(kFlagMcCoyAttackedReplicants);
+		if (Actor_Query_Which_Set_In(kActorSadik) != kSetKP07) {
+			Actor_Set_Goal_Number(kActorSadik, 418);
+			Scene_Exits_Disable();
+		}
+	}
+	return false;
 }
 
 void AIScriptSadik::Retired(int byActorId) {
-	if ((Actor_Query_Goal_Number(kActorSadik) == 418 || Actor_Query_Goal_Number(kActorSadik) == 450)
-			&& Actor_Query_Which_Set_In(kActorSadik) != 48) {
+	if ((Actor_Query_Goal_Number(kActorSadik) == 418
+	  || Actor_Query_Goal_Number(kActorSadik) == 450
+	 )
+	 && Actor_Query_Which_Set_In(kActorSadik) != kSetKP07
+	) {
 		Scene_Exits_Enable();
 	}
-	if (Actor_Query_In_Set(kActorSadik, kSetKP07)) {
-		Global_Variable_Decrement(51, 1);
-		Actor_Set_Goal_Number(kActorSadik, 599);
 
-		if (!Global_Variable_Query(51)) {
+	if (Actor_Query_In_Set(kActorSadik, kSetKP07)) {
+		Global_Variable_Decrement(kVariableReplicantsSurvivorsAtMoonbus, 1); // can't Sadik still be human (Rep-sympathiser here? A bug?
+		Actor_Set_Goal_Number(kActorSadik, kGoalSadikGone);
+
+		if (Global_Variable_Query(kVariableReplicantsSurvivorsAtMoonbus) == 0) {
 			Player_Loses_Control();
 			Delay(2000);
-			Player_Set_Combat_Mode(0);
-			Loop_Actor_Walk_To_XYZ(kActorMcCoy, -12.0f, -41.58f, 72.0f, 0, 1, 0, 0);
-			Ambient_Sounds_Remove_All_Non_Looping_Sounds(1);
+			Player_Set_Combat_Mode(false);
+			Loop_Actor_Walk_To_XYZ(kActorMcCoy, -12.0f, -41.58f, 72.0f, 0, true, false, false);
+			Ambient_Sounds_Remove_All_Non_Looping_Sounds(true);
 			Ambient_Sounds_Remove_All_Looping_Sounds(1);
-			Game_Flag_Set(579);
-			Game_Flag_Reset(653);
-			Set_Enter(kSetKP05_KP06, kSetKP03);
+			Game_Flag_Set(kFlagKP07toKP06);
+			Game_Flag_Reset(kFlagMcCoyIsHelpingReplicants);
+			Set_Enter(kSetKP05_KP06, kSceneKP06);
 			return; //true;
 		}
 	}
 
-	Actor_Set_Goal_Number(kActorSadik, 599);
+	Actor_Set_Goal_Number(kActorSadik, kGoalSadikGone);
 
 	return; //false;
 }
@@ -212,13 +264,13 @@ int AIScriptSadik::GetFriendlinessModifierIfGetsClue(int otherActorId, int clueI
 
 bool AIScriptSadik::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 	switch (newGoalNumber) {
-	case 100:
+	case kGoalSadikDefaut:
 		AI_Movement_Track_Flush(kActorSadik);
 		AI_Movement_Track_Append(kActorSadik, 33, 0);
 		AI_Movement_Track_Repeat(kActorSadik);
 		return true;
 
-	case 101:
+	case kGoalSadikRunFromBB09:
 		AI_Movement_Track_Flush(kActorSadik);
 		AI_Movement_Track_Append_Run(kActorSadik, 131, 0);
 		AI_Movement_Track_Append_Run(kActorSadik, 132, 0);
@@ -226,42 +278,42 @@ bool AIScriptSadik::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 		AI_Movement_Track_Repeat(kActorSadik);
 		return true;
 
-	case 102:
+	case kGoalSadikBB11Wait:
 		AI_Movement_Track_Flush(kActorSadik);
 		AI_Movement_Track_Append(kActorSadik, 313, 0);
 		AI_Movement_Track_Repeat(kActorSadik);
-		Game_Flag_Set(509);
+		Game_Flag_Set(kFlagBB11SadikFight);
 		return true;
 
-	case 103:
-		Actor_Set_Immunity_To_Obstacles(kActorSadik, 1);
+	case kGoalSadikBB11ThrowMcCoy:
+		Actor_Set_Immunity_To_Obstacles(kActorSadik, true);
 		Actor_Face_Heading(kActorSadik, kActorMcCoy, kActorMcCoy);
 		_animationState = 32;
 		_animationFrame = -1;
-		Actor_Change_Animation_Mode(kActorMcCoy, 48);
+		Actor_Change_Animation_Mode(kActorMcCoy, kAnimationModeDie);
 		return true;
 
-	case 104:
-		Actor_Set_Goal_Number(kActorMcCoy, 100);
+	case kGoalSadikBB11CatchMcCoy:
+		Actor_Set_Goal_Number(kActorMcCoy, kGoalMcCoyBB11GetUp);
 		AI_Movement_Track_Flush(kActorSadik);
 		AI_Movement_Track_Append(kActorSadik, 314, 0);
 		AI_Movement_Track_Append_Run(kActorSadik, 317, 0);
 		AI_Movement_Track_Repeat(kActorSadik);
 		return true;
 
-	case 105:
+	case kGoalSadikBB11KnockOutMcCoy:
 		Actor_Change_Animation_Mode(kActorSadik, 62);
 		return true;
 
-	case 106:
-		Actor_Face_Heading(kActorSadik, 100, 0);
+	case kGoalSadikBB11KickMcCoy:
+		Actor_Face_Heading(kActorSadik, 100, false);
 		Actor_Change_Animation_Mode(kActorSadik, 63);
-		Actor_Set_Goal_Number(kActorClovis, 101);
-		Actor_Set_Immunity_To_Obstacles(kActorSadik, 0);
+		Actor_Set_Goal_Number(kActorClovis, kGoalClovisBB11WalkToMcCoy);
+		Actor_Set_Immunity_To_Obstacles(kActorSadik, false);
 		return true;
 
-	case 107:
-		_var1 = 0;
+	case kGoalSadikBB11TalkWithClovis:
+		_nextSoundId = -1; // changed from original (0) to be more clear that this is an invalid sfx id
 		return false;
 
 	case 200:
@@ -270,56 +322,57 @@ bool AIScriptSadik::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 		Actor_Set_Goal_Number(kActorMcCoy, 199);
 		return true;
 
-	case 300:
+	case kGoalSadikUG18Wait:
 		Actor_Put_In_Set(kActorSadik, kSetUG18);
 		Actor_Set_At_XYZ(kActorSadik, 111.89f, 0.0f, 408.42f, 0);
 		Actor_Change_Animation_Mode(kActorSadik, 4);
 		return true;
 
-	case 301:
-		Actor_Set_Targetable(kActorSadik, 1);
-		World_Waypoint_Set(436, 89, -356.11f, 0.0f, 652.42f);
+	case kGoalSadikUG18Move:
+		Actor_Set_Targetable(kActorSadik, true);
+		World_Waypoint_Set(436, kSetUG18, -356.11f, 0.0f, 652.42f);
 		AI_Movement_Track_Flush(kActorSadik);
 		AI_Movement_Track_Append_Run(kActorSadik, 436, 0);
 		AI_Movement_Track_Repeat(kActorSadik);
 		return true;
 
-	case 302:
-		Actor_Set_Targetable(kActorSadik, 0);
+	case kGoalSadikUG18Decide:
+		Actor_Set_Targetable(kActorSadik, false);
 		return true;
 
+	// goals 303, 304 and 305 are never set,  cut out part of game?
 	case 303:
-		AI_Countdown_Timer_Reset(kActorSadik, 0);
-		AI_Countdown_Timer_Start(kActorSadik, 0, 5);
+		AI_Countdown_Timer_Reset(kActorSadik, kActorTimerAIScriptCustomTask0);
+		AI_Countdown_Timer_Start(kActorSadik, kActorTimerAIScriptCustomTask0, 5);
 		return true;
 
 	case 304:
-		Actor_Set_Targetable(kActorSadik, 0);
-		AI_Countdown_Timer_Reset(kActorSadik, 0);
+		Actor_Set_Targetable(kActorSadik, false);
+		AI_Countdown_Timer_Reset(kActorSadik, kActorTimerAIScriptCustomTask0);
 		return true;
 
 	case 305:
-	case 306:
-	case 310:
+	case kGoalSadikUG18WillShootMcCoy:
+	case kGoalSadikUG18Leave:
 		return true;
 
-	case 307:
-		Sound_Play(12, 100, 0, 0, 50);
-		AI_Countdown_Timer_Start(kActorSadik, 0, 2);
+	case kGoalSadikUG18PrepareShootMcCoy:
+		Sound_Play(kSfxLGCAL1, 100, 0, 0, 50);
+		AI_Countdown_Timer_Start(kActorSadik, kActorTimerAIScriptCustomTask0, 2);
 		return true;
 
-	case 308:
-		if (Player_Query_Current_Scene() == 102) {
+	case kGoalSadikUG18ShootMcCoy:
+		if (Player_Query_Current_Scene() == kSceneUG18) {
 			Actor_Force_Stop_Walking(kActorMcCoy);
-			Actor_Change_Animation_Mode(kActorSadik, 6);
-			Sound_Play(12, 100, 0, 0, 50);
-			Actor_Change_Animation_Mode(kActorMcCoy, 48);
-			Actor_Retired_Here(kActorMcCoy, 6, 6, 1, -1);
+			Actor_Change_Animation_Mode(kActorSadik, kAnimationModeCombatAttack);
+			Sound_Play(kSfxLGCAL1, 100, 0, 0, 50);
+			Actor_Change_Animation_Mode(kActorMcCoy, kAnimationModeDie);
+			Actor_Retired_Here(kActorMcCoy, 6, 6, true, -1);
 		}
 		return true;
 
 	case 309:
-		AI_Countdown_Timer_Reset(kActorSadik, 0);
+		AI_Countdown_Timer_Reset(kActorSadik, kActorTimerAIScriptCustomTask0);
 		return true;
 
 	case 400:
@@ -327,7 +380,7 @@ bool AIScriptSadik::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 		return true;
 
 	case 410:
-		if (Game_Flag_Query(653) == 1) {
+		if (Game_Flag_Query(kFlagMcCoyIsHelpingReplicants) == 1) {
 			Actor_Set_Goal_Number(kActorSadik, 414);
 		} else {
 			Actor_Set_Goal_Number(kActorSadik, 411);
@@ -337,8 +390,8 @@ bool AIScriptSadik::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 	case 411:
 		Actor_Put_In_Set(kActorSadik, kSetKP05_KP06);
 		Actor_Set_At_XYZ(kActorSadik, -1134.0f, 0.0f, 73.45f, 398);
-		Actor_Set_Goal_Number(kActorClovis, 513);
-		Actor_Set_Goal_Number(kActorMaggie, 411);
+		Actor_Set_Goal_Number(kActorClovis, kGoalClovisKP07Wait);
+		Actor_Set_Goal_Number(kActorMaggie, kGoalMaggieKP05Wait);
 		return true;
 
 	case 412:
@@ -354,8 +407,8 @@ bool AIScriptSadik::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 		return true;
 
 	case 413:
-		Loop_Actor_Walk_To_XYZ(kActorSadik, -1062.0f, 0.0f, 219.0f, 0, 0, 1, 0);
-		Actor_Set_Targetable(kActorSadik, 1);
+		Loop_Actor_Walk_To_XYZ(kActorSadik, -1062.0f, 0.0f, 219.0f, 0, false, true, false);
+		Actor_Set_Targetable(kActorSadik, true);
 		Non_Player_Actor_Combat_Mode_On(kActorSadik, kActorCombatStateIdle, true, kActorMcCoy, 9, kAnimationModeCombatIdle, kAnimationModeCombatWalk, kAnimationModeCombatRun, 0, -1, -1, 15, 300, false);
 		Actor_Set_Goal_Number(kActorSadik, 450);
 		return true;
@@ -363,55 +416,55 @@ bool AIScriptSadik::GoalChanged(int currentGoalNumber, int newGoalNumber) {
 	case 414:
 		Actor_Put_In_Set(kActorSadik, kSetKP05_KP06);
 		Actor_Set_At_XYZ(kActorSadik, -961.0f, 0.0f, -778.0f, 150);
-		Actor_Set_Targetable(kActorSadik, 1);
+		Actor_Set_Targetable(kActorSadik, true);
 		return true;
 
 	case 415:
-		Actor_Says(kActorSadik, 110, 3);
-		Actor_Says(kActorMcCoy, 2290, 3);
-		Actor_Says(kActorSadik, 310, 3);
-		Actor_Says(kActorMcCoy, 2300, 3);
-		if (Game_Flag_Query(48)) {
-			Actor_Says(kActorSadik, 180, 3);
-			Actor_Says(kActorSadik, 190, 3);
-			Actor_Says(kActorMcCoy, 2310, 3);
-			Actor_Says(kActorSadik, 200, 3);
+		Actor_Says(kActorSadik, 110, kAnimationModeTalk);
+		Actor_Says(kActorMcCoy, 2290, kAnimationModeTalk);
+		Actor_Says(kActorSadik, 310, kAnimationModeTalk);
+		Actor_Says(kActorMcCoy, 2300, kAnimationModeTalk);
+		if (Game_Flag_Query(kFlagSadikIsReplicant)) {
+			Actor_Says(kActorSadik, 180, kAnimationModeTalk);
+			Actor_Says(kActorSadik, 190, kAnimationModeTalk);
+			Actor_Says(kActorMcCoy, 2310, kAnimationModeTalk);
+			Actor_Says(kActorSadik, 200, kAnimationModeTalk);
 		} else {
-			Actor_Says(kActorSadik, 140, 3);
-			Actor_Says(kActorSadik, 150, 3);
-			Actor_Says(kActorMcCoy, 2305, 3);
-			Actor_Says(kActorSadik, 160, 3);
-			Actor_Says(kActorSadik, 170, 3);
+			Actor_Says(kActorSadik, 140, kAnimationModeTalk);
+			Actor_Says(kActorSadik, 150, kAnimationModeTalk);
+			Actor_Says(kActorMcCoy, 2305, kAnimationModeTalk);
+			Actor_Says(kActorSadik, 160, kAnimationModeTalk);
+			Actor_Says(kActorSadik, 170, kAnimationModeTalk);
 		}
-		Actor_Says(kActorMcCoy, 2315, 3);
-		Actor_Says(kActorSadik, 210, 3);
-		Actor_Says(kActorSadik, 220, 3);
-		Actor_Says(kActorSadik, 230, 3);
-		Actor_Says(kActorSadik, 240, 3);
-		Actor_Says(kActorSadik, 250, 3);
-		Actor_Says(kActorSadik, 260, 3);
-		Actor_Set_Goal_Number(kActorSadik, 416);
+		Actor_Says(kActorMcCoy, 2315, kAnimationModeTalk);
+		Actor_Says(kActorSadik, 210, kAnimationModeTalk);
+		Actor_Says(kActorSadik, 220, kAnimationModeTalk);
+		Actor_Says(kActorSadik, 230, kAnimationModeTalk);
+		Actor_Says(kActorSadik, 240, kAnimationModeTalk);
+		Actor_Says(kActorSadik, 250, kAnimationModeTalk);
+		Actor_Says(kActorSadik, 260, kAnimationModeTalk);
+		Actor_Set_Goal_Number(kActorSadik, kGoalSadikUG18NeedsReactorCoreFromMcCoy);
 		return true;
 
-	case 416:
-		Loop_Actor_Walk_To_XYZ(kActorSadik, -961.0f, 0.0f, -778.0f, 0, 0, 0, 0);
-		Actor_Face_Heading(kActorSadik, 150, 0);
+	case kGoalSadikUG18NeedsReactorCoreFromMcCoy:
+		Loop_Actor_Walk_To_XYZ(kActorSadik, -961.0f, 0.0f, -778.0f, 0, false, false, false);
+		Actor_Face_Heading(kActorSadik, 150, false);
 		return true;
 
 	case 417:
-		Actor_Face_Actor(kActorSadik, kActorMcCoy, 1);
-		Actor_Says(kActorSadik, 320, 3);
-		Loop_Actor_Walk_To_XYZ(kActorSadik, -857.0f, 0.0f, -703.0f, 0, 0, 1, 0);
-		Actor_Says(kActorMcCoy, 2330, 3);
-		Actor_Says(kActorSadik, 330, 3);
-		Actor_Says(kActorMcCoy, 2335, 3);
-		Actor_Says(kActorSadik, 340, 3);
-		Actor_Set_Goal_Number(kActorSadik, 416);
+		Actor_Face_Actor(kActorSadik, kActorMcCoy, true);
+		Actor_Says(kActorSadik, 320, kAnimationModeTalk);
+		Loop_Actor_Walk_To_XYZ(kActorSadik, -857.0f, 0.0f, -703.0f, 0, false, true, false);
+		Actor_Says(kActorMcCoy, 2330, kAnimationModeTalk);
+		Actor_Says(kActorSadik, 330, kAnimationModeTalk);
+		Actor_Says(kActorMcCoy, 2335, kAnimationModeTalk);
+		Actor_Says(kActorSadik, 340, kAnimationModeTalk);
+		Actor_Set_Goal_Number(kActorSadik, kGoalSadikUG18NeedsReactorCoreFromMcCoy);
 		return true;
 
 	case 418:
-		Game_Flag_Reset(653);
-		Actor_Set_Goal_Number(kActorClovis, 518);
+		Game_Flag_Reset(kFlagMcCoyIsHelpingReplicants);
+		Actor_Set_Goal_Number(kActorClovis, kGoalClovisKP07LayDown);
 		Non_Player_Actor_Combat_Mode_On(kActorSadik, kActorCombatStateIdle, true, kActorMcCoy, 9, kAnimationModeCombatIdle, kAnimationModeCombatWalk, kAnimationModeCombatRun, 0, -1, -1, 15, 300, false);
 		return true;
 
@@ -550,7 +603,7 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 			*animation = 328;
 			_animationFrame = 0;
 			_animationState = 0;
-			Actor_Change_Animation_Mode(kActorSadik, 0);
+			Actor_Change_Animation_Mode(kActorSadik, kAnimationModeIdle);
 		}
 		break;
 
@@ -561,7 +614,7 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 			_animationFrame = 0;
 			_animationState = 7;
 			*animation = 312;
-			Actor_Change_Animation_Mode(kActorSadik, 4);
+			Actor_Change_Animation_Mode(kActorSadik, kAnimationModeCombatIdle);
 		}
 		break;
 
@@ -572,7 +625,7 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 			_animationFrame = 0;
 			_animationState = 7;
 			*animation = 312;
-			Actor_Change_Animation_Mode(kActorSadik, 4);
+			Actor_Change_Animation_Mode(kActorSadik, kAnimationModeCombatIdle);
 		}
 		break;
 
@@ -620,7 +673,7 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 			} else {
 				snd = 9015;
 			}
-			Sound_Play_Speech_Line(8, snd, 75, 0, 99);
+			Sound_Play_Speech_Line(kActorSadik, snd, 75, 0, 99);
 		}
 		if (_animationFrame == 7) {
 			Actor_Combat_AI_Hit_Attempt(kActorSadik);
@@ -629,7 +682,7 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 			_animationFrame = 0;
 			_animationState = 7;
 			*animation = 312;
-			Actor_Change_Animation_Mode(kActorSadik, 4);
+			Actor_Change_Animation_Mode(kActorSadik, kAnimationModeCombatIdle);
 		}
 		break;
 
@@ -692,7 +745,7 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 			*animation = 328;
 			_animationFrame = 0;
 			_animationState = 0;
-			Actor_Change_Animation_Mode(kActorSadik, 0);
+			Actor_Change_Animation_Mode(kActorSadik, kAnimationModeIdle);
 		}
 		break;
 
@@ -723,7 +776,7 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 			*animation = 328;
 			_animationFrame = 0;
 			_animationState = 0;
-			Actor_Change_Animation_Mode(kActorSadik, 0);
+			Actor_Change_Animation_Mode(kActorSadik, kAnimationModeIdle);
 		}
 		break;
 
@@ -734,7 +787,7 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 			*animation = 328;
 			_animationFrame = 0;
 			_animationState = 0;
-			Actor_Change_Animation_Mode(kActorSadik, 0);
+			Actor_Change_Animation_Mode(kActorSadik, kAnimationModeIdle);
 		}
 		break;
 
@@ -742,25 +795,25 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 		*animation = 345;
 		_animationFrame++;
 		if (_animationFrame == 23) {
-			_var1 = 201;
+			_nextSoundId = kSfxMTLDOOR2;
 		}
 		if (_animationFrame >= 25) {
 			_animationFrame = 0;
 			_animationState = 0;
 			*animation = 328;
-			Actor_Set_Goal_Number(kActorSadik, 104);
+			Actor_Set_Goal_Number(kActorSadik, kGoalSadikBB11CatchMcCoy);
 		}
 		break;
 
 	case 33:
 		*animation = 344;
 		_animationFrame++;
-		if (Actor_Query_Goal_Number(kActorSadik) == 105) {
+		if (Actor_Query_Goal_Number(kActorSadik) == kGoalSadikBB11KnockOutMcCoy) {
 			if (_animationFrame == 4) {
-				_var1 = 221;
+				_nextSoundId = kSfxPUNCH1;
 			}
 			if (_animationFrame == 6) {
-				Actor_Change_Animation_Mode(0, 21);
+				Actor_Change_Animation_Mode(kActorMcCoy, kAnimationModeHit);
 			}
 		}
 		if (_animationFrame >= Slice_Animation_Query_Number_Of_Frames(*animation)) {
@@ -768,8 +821,8 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 			_animationFrame = 0;
 			_animationState = 0;
 
-			Actor_Change_Animation_Mode(kActorSadik, 0);
-			if (Actor_Query_Goal_Number(kActorSadik) == 105) {
+			Actor_Change_Animation_Mode(kActorSadik, kAnimationModeIdle);
+			if (Actor_Query_Goal_Number(kActorSadik) == kGoalSadikBB11KnockOutMcCoy) {
 				Actor_Change_Animation_Mode(kActorSadik, 63);
 			}
 		}
@@ -779,12 +832,12 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 		*animation = 343;
 		_animationFrame++;
 		if (_animationFrame == 4) {
-			if (Actor_Query_Goal_Number(kActorSadik) == 105) {
-				Actor_Change_Animation_Mode(0, 48);
-				_var1 = 222;
+			if (Actor_Query_Goal_Number(kActorSadik) == kGoalSadikBB11KnockOutMcCoy) {
+				Actor_Change_Animation_Mode(kActorMcCoy, kAnimationModeDie);
+				_nextSoundId = kSfxKICK1;
 			} else {
-				Actor_Change_Animation_Mode(0, 68);
-				_var1 = 223;
+				Actor_Change_Animation_Mode(kActorMcCoy, 68);
+				_nextSoundId = kSfxKICK2;
 			}
 		}
 
@@ -792,13 +845,13 @@ bool AIScriptSadik::UpdateAnimation(int *animation, int *frame) {
 			*animation = 328;
 			_animationFrame = 0;
 			_animationState = 0;
-			Actor_Change_Animation_Mode(kActorSadik, 0);
-			if (Actor_Query_Goal_Number(kActorSadik) == 105) {
+			Actor_Change_Animation_Mode(kActorSadik, kAnimationModeIdle);
+			if (Actor_Query_Goal_Number(kActorSadik) == kGoalSadikBB11KnockOutMcCoy) {
 				AI_Movement_Track_Flush(kActorSadik);
 				AI_Movement_Track_Append(kActorSadik, 318, 0);
 				AI_Movement_Track_Repeat(kActorSadik);
 			} else {
-				if (Actor_Query_Goal_Number(kActorSadik) == 106) {
+				if (Actor_Query_Goal_Number(kActorSadik) == kGoalSadikBB11KickMcCoy) {
 					Actor_Change_Animation_Mode(kActorSadik, 63);
 				}
 			}
@@ -820,7 +873,7 @@ bool AIScriptSadik::ChangeAnimationMode(int mode) {
 	Actor_Set_Frame_Rate_FPS(kActorSadik, -2);
 
 	switch (mode) {
-	case 0:
+	case kAnimationModeIdle:
 		switch (_animationState) {
 		case 19:
 		case 20:
@@ -843,22 +896,22 @@ bool AIScriptSadik::ChangeAnimationMode(int mode) {
 		}
 		break;
 
-	case 1:
+	case kAnimationModeWalk:
 		_animationFrame = 0;
 		_animationState = 1;
 		break;
 
-	case 2:
+	case kAnimationModeRun:
 		_animationFrame = 0;
 		_animationState = 2;
 		break;
 
-	case 3:
+	case kAnimationModeTalk:
 		_animationState = 20;
 		_animationFrame = 0;
 		break;
 
-	case 4:
+	case kAnimationModeCombatIdle:
 		switch (_animationState) {
 		case 0:
 			_animationFrame = 0;
@@ -892,17 +945,17 @@ bool AIScriptSadik::ChangeAnimationMode(int mode) {
 	case 20:
 		return true;
 
-	case 6:
+	case kAnimationModeCombatAttack:
 		_animationFrame = 0;
 		_animationState = 18;
 		break;
 
-	case 7:
+	case kAnimationModeCombatWalk:
 		_animationFrame = 0;
 		_animationState = 3;
 		break;
 
-	case 8:
+	case kAnimationModeCombatRun:
 		_animationFrame = 0;
 		_animationState = 4;
 		break;
@@ -942,7 +995,7 @@ bool AIScriptSadik::ChangeAnimationMode(int mode) {
 		_animationFrame = 0;
 		break;
 
-	case 21:
+	case kAnimationModeHit:
 		switch (_animationState) {
 		case 7:
 		case 8:
@@ -972,7 +1025,7 @@ bool AIScriptSadik::ChangeAnimationMode(int mode) {
 		_animationFrame = 0;
 		break;
 
-	case 22:
+	case kAnimationModeCombatHit:
 		if (Random_Query(0, 1)) {
 			_animationState = 12;
 		} else {
@@ -986,13 +1039,15 @@ bool AIScriptSadik::ChangeAnimationMode(int mode) {
 		_animationFrame = 0;
 		break;
 
-	case 48:
+	case kAnimationModeDie:
 		_animationState = 14;
 		_animationFrame = 0;
 		break;
 
 	case 62:
-		if (Actor_Query_Goal_Number(kActorSadik) != 105 && Actor_Query_Goal_Number(kActorSadik) != 106) {
+		if (Actor_Query_Goal_Number(kActorSadik) != kGoalSadikBB11KnockOutMcCoy
+		 && Actor_Query_Goal_Number(kActorSadik) != kGoalSadikBB11KickMcCoy
+		) {
 			_animationState = 31;
 			_animationFrame = 0;
 		} else {
@@ -1002,7 +1057,9 @@ bool AIScriptSadik::ChangeAnimationMode(int mode) {
 		break;
 
 	case 63:
-		if (Actor_Query_Goal_Number(kActorSadik) != 105 && Actor_Query_Goal_Number(kActorSadik) != 106) {
+		if (Actor_Query_Goal_Number(kActorSadik) != kGoalSadikBB11KnockOutMcCoy
+		 && Actor_Query_Goal_Number(kActorSadik) != kGoalSadikBB11KickMcCoy
+		) {
 			_animationState = 30;
 			_animationFrame = 2;
 		} else {

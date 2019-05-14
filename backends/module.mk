@@ -179,6 +179,7 @@ endif
 ifdef MACOSX
 MODULE_OBJS += \
 	audiocd/macosx/macosx-audiocd.o \
+	dialogs/macosx/macosx-dialogs.o \
 	midi/coreaudio.o \
 	midi/coremidi.o \
 	updates/macosx/macosx-updates.o \
@@ -188,6 +189,7 @@ endif
 ifdef WIN32
 MODULE_OBJS += \
 	audiocd/win32/win32-audiocd.o \
+	dialogs/win32/win32-dialogs.o \
 	fs/windows/windows-fs.o \
 	fs/windows/windows-fs-factory.o \
 	midi/windows.o \
@@ -195,6 +197,11 @@ MODULE_OBJS += \
 	saves/windows/windows-saves.o \
 	updates/win32/win32-updates.o \
 	taskbar/win32/win32-taskbar.o
+endif
+
+ifeq ($(BACKEND),android)
+MODULE_OBJS += \
+	mutex/pthread/pthread-mutex.o
 endif
 
 ifeq ($(BACKEND),androidsdl)
@@ -212,8 +219,10 @@ endif
 
 ifdef RISCOS
 MODULE_OBJS += \
+	events/riscossdl/riscossdl-events.o \
 	fs/riscos/riscos-fs.o \
-	fs/riscos/riscos-fs-factory.o
+	fs/riscos/riscos-fs-factory.o \
+	platform/sdl/riscos/riscos-utils.o
 endif
 
 ifdef PLAYSTATION3
@@ -330,6 +339,11 @@ MODULE_OBJS += \
 	fs/wii/wii-fs.o \
 	fs/wii/wii-fs-factory.o \
 	plugins/wii/wii-provider.o
+endif
+
+ifeq ($(BACKEND),switch)
+MODULE_OBJS += \
+	events/switchsdl/switchsdl-events.o
 endif
 
 ifdef ENABLE_EVENTRECORDER

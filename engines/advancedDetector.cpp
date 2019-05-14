@@ -91,7 +91,11 @@ DetectedGame AdvancedMetaEngine::toDetectedGame(const ADDetectedGame &adGame) co
 		extra = "";
 	} else {
 		const PlainGameDescriptor *pgd = findPlainGameDescriptor(desc->gameId, _gameIds);
-		title = pgd->description;
+		if (pgd) {
+			title = pgd->description;
+		} else {
+			title = "";
+		}
 		extra = desc->extra;
 	}
 
@@ -240,7 +244,7 @@ Common::Error AdvancedMetaEngine::createInstance(OSystem *syst, Engine **engine)
 	}
 	Common::FSNode dir(path);
 	Common::FSList files;
-	if (!dir.isDirectory() || !dir.getChildren(files, Common::FSNode::kListAll, true)) {
+	if (!dir.isDirectory() || !dir.getChildren(files, Common::FSNode::kListAll)) {
 		warning("Game data path does not exist or is not a directory (%s)", path.c_str());
 		return Common::kNoGameDataFoundError;
 	}

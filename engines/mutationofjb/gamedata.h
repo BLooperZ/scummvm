@@ -50,8 +50,6 @@ enum {
  * An interactable scene changer with no visual representation.
  */
 struct Door : public Common::Serializable {
-	virtual ~Door() {}
-
 	/**
 	 * Door name (NM register).
 	 *
@@ -59,8 +57,6 @@ struct Door : public Common::Serializable {
 	 *
 	 * If it ends with '+', using the "go" verb on the door will not implicitly change the scene,
 	 * but the player will still walk towards the door.
-	 *
-	 * TODO: Implement the '+' restriction.
 	 */
 	char _name[MAX_ENTITY_NAME_LENGTH + 1];
 	/**
@@ -84,7 +80,11 @@ struct Door : public Common::Serializable {
 	uint16 _walkToX;
 	/** Y coordinate for position player will walk towards after clicking the door (WY register). */
 	uint8  _walkToY;
-	/** Unknown for now - likely not even used. */
+	/**
+	 * Encoded player frames.
+	 *   4 bits - destFrame
+	 *   4 bits - walkToFrame
+	 */
 	uint8  _SP;
 
 	/**
@@ -107,6 +107,13 @@ struct Door : public Common::Serializable {
 	 * @param sz Serializer.
 	 */
 	virtual void saveLoadWithSerializer(Common::Serializer &sz) override;
+
+	/**
+	 * Check whether walk action used on this door causes implicit scene change.
+	 *
+	 * @return True if door implicitly changes current scene, false otherwise.
+	 */
+	bool allowsImplicitSceneChange() const;
 };
 
 /**
@@ -148,6 +155,7 @@ struct Object : public Common::Serializable {
 	uint8  _numFrames;
 	/**
 	 * Low 8 bits of the 16-bit starting room frame (FS register).
+	 * This is in the room frame space.
 	 *
 	 * @see _roomFrameMSB
 	 */
@@ -161,7 +169,7 @@ struct Object : public Common::Serializable {
 	/**
 	 * Current animation frame (CA register).
 	 *
-	 * @note Absolute index to the frame space. Numbered from 1.
+	 * @note Index in the shared object frame space. Numbered from 1.
 	 */
 	uint8  _currentFrame;
 	/** X coordinate of the object rectangle (XX register). */
@@ -176,6 +184,7 @@ struct Object : public Common::Serializable {
 	uint16 _WX;
 	/**
 	 * High 8 bits of the 16-bit starting room frame (WY register).
+	 * This is in the room frame space.
 	 *
 	 * @see _roomFrameLSB
 	 */
@@ -218,7 +227,6 @@ struct Static : public Common::Serializable {
 	 * entity.
 	 *
 	 * TODO: Support '~' statics.
-	 * TODO: Support combinable statics.
 	 */
 	char _name[MAX_ENTITY_NAME_LENGTH + 1];
 	/** X coordinate of the static rectangle (XX register). */
@@ -250,6 +258,22 @@ struct Static : public Common::Serializable {
 	 * @param sz Serializer.
 	 */
 	virtual void saveLoadWithSerializer(Common::Serializer &sz) override;
+
+	/**
+	 * Check whether this static is combinable.
+	 * Statics with names ending with '[' are allowed to be combined with other items.
+	 *
+	 * @return True if combinable, false otherwise.
+	 */
+	bool isCombinable() const;
+
+	/**
+	 * Check whether this static is implicitly picked up.
+	 * Statics with names starting with '~' are implicitly picked up.
+	 *
+	 * @return Returns true if this static is implicitly picked up by pick up action, false otherwise.
+	 */
+	bool allowsImplicitPickup() const;
 };
 
 /**
@@ -316,10 +340,12 @@ struct Scene : Common::Serializable {
 	Door *getDoor(uint8 objectId);
 	Object *getObject(uint8 objectId, bool ignoreNo = false);
 	Static *getStatic(uint8 staticId, bool ignoreNo = false);
+	Bitmap *getBitmap(uint8 bitmapId);
 
 	uint8 getNoDoors(bool ignoreNo = false) const;
 	uint8 getNoObjects(bool ignoreNo = false) const;
 	uint8 getNoStatics(bool ignoreNo = false) const;
+	uint8 getNoBitmaps() const;
 
 	/**
 	 * Finds the door at the given position. By default, only active doors are considered.

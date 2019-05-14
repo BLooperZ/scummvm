@@ -36,11 +36,16 @@ class ManagedSurface;
 
 namespace MutationOfJB {
 
-class Gui;
+class GuiScreen;
 
 class Widget {
 public:
-	Widget(Gui &gui, const Common::Rect &area) : _gui(gui), _area(area), _id(0), _visible(true), _dirty(true) {}
+	enum {
+		DIRTY_NONE = 0,
+		DIRTY_ALL = 0xFFFFFFFF
+	};
+
+	Widget(GuiScreen &gui, const Common::Rect &area) : _gui(gui), _area(area), _id(0), _visible(true), _enabled(true), _dirtyBits(DIRTY_NONE) {}
 	virtual ~Widget() {}
 
 	int getId() const;
@@ -49,19 +54,26 @@ public:
 	bool isVisible() const;
 	void setVisible(bool visible);
 
+	bool isEnabled() const;
+	void setEnabled(bool enabled);
+
+	Common::Rect getArea() const;
+	void setArea(const Common::Rect &area);
+
 	bool isDirty() const;
-	void markDirty();
+	void markDirty(uint32 dirtyBits = DIRTY_ALL);
 	void update(Graphics::ManagedSurface &);
 
 	virtual void handleEvent(const Common::Event &) {}
 protected:
 	virtual void draw(Graphics::ManagedSurface &) = 0;
 
-	Gui &_gui;
+	GuiScreen &_gui;
 	Common::Rect _area;
 	int _id;
 	bool _visible;
-	bool _dirty;
+	bool _enabled;
+	uint32 _dirtyBits;
 };
 
 }

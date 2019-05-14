@@ -75,7 +75,7 @@ void Combat::deactivate() {
 }
 
 void Combat::change() {
-	if (!_vm->_playerActor->inWalkLoop() && _enabled) {
+	if (!_vm->_playerActor->mustReachWalkDestination() && _enabled) {
 		if (_active) {
 			deactivate();
 		} else {
@@ -97,19 +97,19 @@ void Combat::disable() {
 }
 
 void Combat::setHitSound(int ammoType, int column, int soundId) {
-	_hitSoundId[ammoType * 3 + column] = soundId;
+	_hitSoundId[(kSoundCount/_vm->_settings->getAmmoTypesCount()) * ammoType + column] = soundId;
 }
 
 void Combat::setMissSound(int ammoType, int column, int soundId) {
-	_missSoundId[ammoType * 3 + column] = soundId;
+	_missSoundId[(kSoundCount/_vm->_settings->getAmmoTypesCount()) * ammoType + column] = soundId;
 }
 
 int Combat::getHitSound() const {
-	return _hitSoundId[3 * _vm->_settings->getAmmoType() + _vm->_rnd.getRandomNumber(2)];
+	return _hitSoundId[(kSoundCount/_vm->_settings->getAmmoTypesCount()) * _vm->_settings->getAmmoType() + _vm->_rnd.getRandomNumber(2)];
 }
 
 int Combat::getMissSound() const {
-	return _hitSoundId[3 * _vm->_settings->getAmmoType() + _vm->_rnd.getRandomNumber(2)];
+	return _missSoundId[(kSoundCount/_vm->_settings->getAmmoTypesCount()) * _vm->_settings->getAmmoType() + _vm->_rnd.getRandomNumber(2)];
 }
 
 void Combat::shoot(int actorId, Vector3 &to, int screenX) {
@@ -159,11 +159,13 @@ void Combat::shoot(int actorId, Vector3 &to, int screenX) {
 			actor->combatModeOff();
 		}
 		actor->stopWalking(false);
-		actor->changeAnimationMode(48, false);
+		actor->changeAnimationMode(kAnimationModeDie, false);
+
 		actor->retire(true, 72, 36, kActorMcCoy);
 		actor->setAtXYZ(actor->getXYZ(), actor->getFacing(), true, false, true);
 		_vm->_sceneObjects->setRetired(actorId + kSceneObjectOffsetActors, true);
-		sentenceId = 9020;
+
+		sentenceId = 9020; // Bug or intended? This sentence id (death rattle) won't be used in this case since combat mode is set to off above. Probably intended, in order to use the rattle in a case by case (?)
 	}
 
 	if (sentenceId >= 0 && actor->inCombat()) {
