@@ -162,7 +162,6 @@ void ScummEngine_v6::drawBlastTexts() {
 			strcpy((char *)buf, (const char *)rev);
 		}
 
-
 		do {
 			_charset->_left = _blastTextQueue[i].xpos;
 
