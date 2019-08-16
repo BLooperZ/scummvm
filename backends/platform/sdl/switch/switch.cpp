@@ -49,8 +49,9 @@ void OSystem_Switch::initBackend() {
 	ConfMan.registerDefault("fullscreen", true);
 	ConfMan.registerDefault("aspect_ratio", false);
 	ConfMan.registerDefault("gfx_mode", "2x");
+	ConfMan.registerDefault("filtering", true);
 	ConfMan.registerDefault("output_rate", 48000);
-	ConfMan.registerDefault("touchpad_mouse_mode", true);
+	ConfMan.registerDefault("touchpad_mouse_mode", false);
 
 	if (!ConfMan.hasKey("joystick_num")) {
 		ConfMan.setInt("joystick_num", 0);
@@ -64,11 +65,14 @@ void OSystem_Switch::initBackend() {
 	if (!ConfMan.hasKey("gfx_mode")) {
 		ConfMan.set("gfx_mode", "2x");
 	}
+	if (!ConfMan.hasKey("filtering")) {
+		ConfMan.setBool("filtering", true);
+	}
 	if (!ConfMan.hasKey("output_rate")) {
 		ConfMan.setInt("output_rate", 48000);
 	}
 	if (!ConfMan.hasKey("touchpad_mouse_mode")) {
-		ConfMan.setBool("touchpad_mouse_mode", true);
+		ConfMan.setBool("touchpad_mouse_mode", false);
 	}
 
 	// Create the savefile manager
@@ -83,6 +87,33 @@ void OSystem_Switch::initBackend() {
 
 	// Invoke parent implementation of this method
 	OSystem_SDL::initBackend();
+}
+
+bool OSystem_Switch::hasFeature(Feature f) {
+	return (f == kFeatureTouchpadMode ||
+		OSystem_SDL::hasFeature(f));
+}
+
+void OSystem_Switch::setFeatureState(Feature f, bool enable) {
+	switch (f) {
+	case kFeatureTouchpadMode:
+		ConfMan.setBool("touchpad_mouse_mode", enable);
+		break;
+	default:
+		OSystem_SDL::setFeatureState(f, enable);
+		break;
+	}
+}
+
+bool OSystem_Switch::getFeatureState(Feature f) {
+	switch (f) {
+	case kFeatureTouchpadMode:
+		return ConfMan.getBool("touchpad_mouse_mode");
+		break;
+	default:
+		return OSystem_SDL::getFeatureState(f);
+		break;
+	}
 }
 
 void OSystem_Switch::logMessage(LogMessageType::Type type, const char *message) {

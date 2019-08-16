@@ -293,7 +293,7 @@ void Spinner::reset() {
 
 	_actorId = -1;
 	_sentenceId = -1;
-	_timeSpeakDescription = 0;
+	_timeSpeakDescriptionStart = 0u;
 
 	for (int i = 0; i != (int)_shapes.size(); ++i) {
 		delete _shapes[i];
@@ -302,7 +302,7 @@ void Spinner::reset() {
 }
 
 void Spinner::resume() {
-	if(_vqaPlayer == nullptr) {
+	if (_vqaPlayer == nullptr) {
 		return;
 	}
 
@@ -413,26 +413,27 @@ void Spinner::destinationFocus(int destinationImage) {
 void Spinner::setupDescription(int actorId, int sentenceId) {
 	_actorId = actorId;
 	_sentenceId = sentenceId;
-	_timeSpeakDescription = _vm->_time->current() + 600;
+	_timeSpeakDescriptionStart = _vm->_time->current();
 }
 
 // copied from elevator.cpp code
 void Spinner::resetDescription() {
 	_actorId = -1;
 	_sentenceId = -1;
-	_timeSpeakDescription = 0;
+	_timeSpeakDescriptionStart = 0u;
 }
 
 // copied from elevator.cpp code
 void Spinner::tickDescription() {
-	int now = _vm->_time->current();
-	if (_actorId <= 0 || now < _timeSpeakDescription) {
+	uint32 now = _vm->_time->current();
+	// unsigned difference is intentional
+	if (_actorId <= 0 || (now - _timeSpeakDescriptionStart < 600u)) {
 		return;
 	}
 
 	if (!_vm->_mouse->isDisabled()) {
-		// mouse can mouse when disab;ed so hover callbacks will work, while the cursor is invisible
-		// so postpone the speech until mouse is invisible again
+		// mouse can still move when "disabled", so hover callbacks will work while the cursor is invisible,
+		// so postpone the speech until mouse is visible again
 		_vm->_actors[_actorId]->speechPlay(_sentenceId, false);
 		_actorId = -1;
 		_sentenceId = -1;

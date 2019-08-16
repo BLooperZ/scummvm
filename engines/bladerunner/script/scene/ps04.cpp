@@ -62,6 +62,10 @@ void SceneScriptPS04::SceneLoaded() {
 	Unobstacle_Object("B.DOOR", true);
 	Unobstacle_Object("B.CHAIR01", true);
 	Unclickable_Object("CHAIR07");
+#if BLADERUNNER_ORIGINAL_BUGS
+#else
+	Unclickable_Object("FLOOR");
+#endif // BLADERUNNER_ORIGINAL_BUGS
 
 	if ( Global_Variable_Query(kVariableChapter) == 2
 	 && !Actor_Clue_Query(kActorMcCoy, kClueWeaponsOrderForm)
@@ -364,6 +368,11 @@ void SceneScriptPS04::dialogueWithGuzza() {
 			Delay(1000);
 			Actor_Face_Actor(kActorGuzza, kActorMcCoy, true);
 			Delay(1000);
+			// if McCoy confesses before the body is dumped, then the body should be found (even if in dumpster)
+			if (!Game_Flag_Query(kFlagCT04HomelessBodyThrownAway)) {
+				Game_Flag_Set(kFlagCT04HomelessBodyFound);
+				// return false;
+			}
 		}
 		Actor_Says(kActorGuzza, 700, 34);
 		Actor_Says(kActorMcCoy, 4100, 13);

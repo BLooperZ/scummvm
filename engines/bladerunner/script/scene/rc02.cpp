@@ -72,15 +72,44 @@ void SceneScriptRC02::SceneLoaded() {
 	Unobstacle_Object("LEGS", true);
 	Unobstacle_Object("SLATS01", true);
 	Unobstacle_Object("DRAPE07", true);
+	if (_vm->_cutContent) {
+		// improvement: broaden path for Runciter to his desk
+		Unobstacle_Object("GRD ROPE04", true);
+	}
 	Clickable_Object("SCRTY CA03");
 	Unclickable_Object("GRL_DSKLEG");
 	Unclickable_Object("CURTAIN");
-	Unclickable_Object("DRAPE01");
-	Unclickable_Object("DRAPE02");
-	Unclickable_Object("DRAPE03");
-	Unclickable_Object("DRAPE05");
-	Unclickable_Object("DRAPE06");
-	Unclickable_Object("DRAPE07");
+	if (_vm->_cutContent) {
+		if (Global_Variable_Query(kVariableChapter) == 1
+		    && !Game_Flag_Query(kFlagMcCoyCommentsOnMurderedAnimals)
+		    && !Actor_Clue_Query(kActorMcCoy, kClueLabCorpses)
+		) {
+			Clickable_Object("DRAPE01");
+			Clickable_Object("DRAPE02");
+			Clickable_Object("DRAPE03");
+			Clickable_Object("DRAPE04");
+			Clickable_Object("DRAPE05");
+			Clickable_Object("DRAPE06");
+			Clickable_Object("DRAPE07");
+		} else {
+			Unclickable_Object("DRAPE01");
+			Unclickable_Object("DRAPE02");
+			Unclickable_Object("DRAPE03");
+			Unclickable_Object("DRAPE04");
+			Unclickable_Object("DRAPE05");
+			Unclickable_Object("DRAPE06");
+			Unclickable_Object("DRAPE07");
+		}
+	} else {
+		// original code
+		Unclickable_Object("DRAPE01");
+		Unclickable_Object("DRAPE02");
+		Unclickable_Object("DRAPE03");
+		Unclickable_Object("DRAPE05");
+		Unclickable_Object("DRAPE06");
+		Unclickable_Object("DRAPE07");
+	}
+
 	if (Actor_Clue_Query(kActorMcCoy, kClueRuncitersVideo) || Global_Variable_Query(kVariableChapter) > 1) {
 		Unclickable_Object("SCRTY CA03");
 	}
@@ -133,6 +162,30 @@ bool SceneScriptRC02::ClickedOn3DObject(const char *objectName, bool a2) {
 			return true;
 		}
 	}
+
+	if (_vm->_cutContent
+	    && !Game_Flag_Query(kFlagMcCoyCommentsOnMurderedAnimals)
+	    && Global_Variable_Query(kVariableChapter) == 1
+	    && !Actor_Clue_Query(kActorMcCoy, kClueLabCorpses)
+	    && (Object_Query_Click("DRAPE01", objectName)
+	        || Object_Query_Click("DRAPE02", objectName)
+	        || Object_Query_Click("DRAPE03", objectName)
+	        || Object_Query_Click("DRAPE04", objectName)
+	        || Object_Query_Click("DRAPE05", objectName)
+	        || Object_Query_Click("DRAPE06", objectName)
+	        || Object_Query_Click("DRAPE07", objectName))
+	) {
+		Game_Flag_Set(kFlagMcCoyCommentsOnMurderedAnimals);
+		Unclickable_Object("DRAPE01");
+		Unclickable_Object("DRAPE02");
+		Unclickable_Object("DRAPE03");
+		Unclickable_Object("DRAPE04");
+		Unclickable_Object("DRAPE05");
+		Unclickable_Object("DRAPE06");
+		Unclickable_Object("DRAPE07");
+		Actor_Voice_Over(1940, kActorVoiceOver);
+		return true;
+	}
 	return false;
 }
 
@@ -145,8 +198,12 @@ void SceneScriptRC02::dialogueWithRunciter() {
 	) {
 		DM_Add_To_List_Never_Repeat_Once_Selected(20, 6, 4, 5); // REFERENCE
 	}
-	if (_vm->_cutContent) {
-		DM_Add_To_List_Never_Repeat_Once_Selected(200, -1, 3, 6); // VK - TEST
+	if (_vm->_cutContent
+	     && (!Game_Flag_Query(kFlagRC02RunciterVKChosen)
+	         && (!Actor_Clue_Query(kActorMcCoy, kClueVKRunciterHuman) && !Actor_Clue_Query(kActorMcCoy, kClueVKRunciterReplicant)))
+	){
+		Dialogue_Menu_Clear_Never_Repeat_Was_Selected_Flag(200);
+		DM_Add_To_List_Never_Repeat_Once_Selected(200, -1, 3, 6); // VOIGT-KAMPFF
 	}
 	Dialogue_Menu_Add_DONE_To_List(30); // DONE
 
@@ -212,6 +269,7 @@ void SceneScriptRC02::dialogueWithRunciter() {
 
 	case 200:
 		if (_vm->_cutContent) { // scene 16 79
+			Game_Flag_Set(kFlagRC02RunciterVKChosen);
 			Actor_Face_Actor(kActorMcCoy, kActorRunciter, true);
 			Actor_Says(kActorMcCoy, 395, 14);
 			Actor_Face_Actor(kActorRunciter, kActorMcCoy, true);
@@ -358,8 +416,8 @@ bool SceneScriptRC02::ClickedOnExit(int exitId) {
 		if (!Loop_Actor_Walk_To_XYZ(kActorMcCoy, -71.51f, -1238.89f, 108587.15f, 0, true, false, false)) {
 			Game_Flag_Set(kFlagRC02toRC01);
 			Ambient_Sounds_Remove_All_Non_Looping_Sounds(true);
-			Ambient_Sounds_Remove_Looping_Sound(kSfxBRBED5,   true);
-			Ambient_Sounds_Remove_Looping_Sound(kSfxWINDLOP8, true);
+			Ambient_Sounds_Remove_Looping_Sound(kSfxBRBED5,   1);
+			Ambient_Sounds_Remove_Looping_Sound(kSfxWINDLOP8, 1);
 			Ambient_Sounds_Adjust_Looping_Sound(kSfxRCRAIN1, 100, -101, 1);
 			Actor_Set_Goal_Number(kActorRunciter, kGoalRunciterDefault);
 			Set_Enter(kSetRC01, kSceneRC01);

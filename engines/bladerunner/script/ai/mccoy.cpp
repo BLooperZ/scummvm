@@ -246,10 +246,12 @@ void AIScriptMcCoy::ReceivedClue(int clueId, int fromActorId) {
 		Actor_Clue_Acquire(kActorMcCoy, kClueGuzzaFramedMcCoy, true, -1);
 
 		if (clueId == kClueFolder) {
+			// if McCoy just got the folder
 			Actor_Voice_Over(2780, kActorVoiceOver);
 			Actor_Voice_Over(2800, kActorVoiceOver);
 			Actor_Voice_Over(2810, kActorVoiceOver);
 		} else if (Actor_Clue_Query(kActorMcCoy, kClueFolder)) {
+			// if McCoy already had the folder
 			Actor_Voice_Over(3430, kActorVoiceOver);
 			Actor_Voice_Over(3440, kActorVoiceOver);
 			Actor_Voice_Over(3450, kActorVoiceOver);
@@ -259,6 +261,7 @@ void AIScriptMcCoy::ReceivedClue(int clueId, int fromActorId) {
 			Actor_Voice_Over(3490, kActorVoiceOver);
 			Actor_Voice_Over(3500, kActorVoiceOver);
 		} else {
+			// if McCoy never got the folder
 			Actor_Voice_Over(3510, kActorVoiceOver);
 			Actor_Voice_Over(3520, kActorVoiceOver);
 			Actor_Voice_Over(3530, kActorVoiceOver);
@@ -767,6 +770,8 @@ bool AIScriptMcCoy::UpdateAnimation(int *animation, int *frame) {
 		break;
 
 	case 17:
+		// this is just frame 0 always, McCoy doesn't animated shoot in this animation State
+		// animation state 21 is for the full shooting animation
 		*animation = kModelAnimationMcCoyWithGunShooting;
 		_animationFrame = 0;
 		// weird, but thats in game code
@@ -809,6 +814,12 @@ bool AIScriptMcCoy::UpdateAnimation(int *animation, int *frame) {
 			_animationState = 17;
 			_animationFrame = 0;
 			*animation = kModelAnimationMcCoyWithGunShooting;
+#if BLADERUNNER_ORIGINAL_BUGS
+#else
+			// Resume combat idle position even when shot at a target -- if it's no longer a target (dead or moved)
+			ChangeAnimationMode(kAnimationModeCombatIdle);
+#endif // BLADERUNNER_ORIGINAL_BUGS
+
 			if (Actor_Query_Goal_Number(kActorMcCoy) == kGoalMcCoyNR11Shoot) {
 				_animationFrame = 0;
 				_animationState = 21;

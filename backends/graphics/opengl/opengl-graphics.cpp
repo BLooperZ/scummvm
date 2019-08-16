@@ -54,7 +54,7 @@ namespace OpenGL {
 
 OpenGLGraphicsManager::OpenGLGraphicsManager()
     : _currentState(), _oldState(), _transactionMode(kTransactionNone), _screenChangeID(1 << (sizeof(int) * 8 - 2)),
-      _pipeline(nullptr),
+      _pipeline(nullptr), _stretchMode(STRETCH_FIT),
       _defaultFormat(), _defaultFormatAlpha(),
       _gameScreen(nullptr), _gameScreenShakeOffset(0), _overlay(nullptr),
       _cursor(nullptr),
@@ -88,6 +88,7 @@ bool OpenGLGraphicsManager::hasFeature(OSystem::Feature f) const {
 	case OSystem::kFeatureAspectRatioCorrection:
 	case OSystem::kFeatureCursorPalette:
 	case OSystem::kFeatureFilteringMode:
+	case OSystem::kFeatureStretchMode:
 		return true;
 
 	case OSystem::kFeatureOverlaySupportsAlpha:
@@ -184,7 +185,103 @@ int OpenGLGraphicsManager::getGraphicsMode() const {
 Graphics::PixelFormat OpenGLGraphicsManager::getScreenFormat() const {
 	return _currentState.gameFormat;
 }
+
+Common::List<Graphics::PixelFormat> OpenGLGraphicsManager::getSupportedFormats() const {
+	Common::List<Graphics::PixelFormat> formats;
+
+	// Our default mode is (memory layout wise) RGBA8888 which is a different
+	// logical layout depending on the endianness. We chose this mode because
+	// it is the only 32bit color mode we can safely assume to be present in
+	// OpenGL and OpenGL ES implementations. Thus, we need to supply different
+	// logical formats based on endianness.
+#ifdef SCUMM_LITTLE_ENDIAN
+	// ABGR8888
+	formats.push_back(Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24));
+#else
+	// RGBA8888
+	formats.push_back(Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0));
 #endif
+	// RGB565
+	formats.push_back(Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0));
+	// RGBA5551
+	formats.push_back(Graphics::PixelFormat(2, 5, 5, 5, 1, 11, 6, 1, 0));
+	// RGBA4444
+	formats.push_back(Graphics::PixelFormat(2, 4, 4, 4, 4, 12, 8, 4, 0));
+
+#if !USE_FORCED_GLES && !USE_FORCED_GLES2
+#if !USE_FORCED_GL
+	if (!isGLESContext()) {
+#endif
+#ifdef SCUMM_LITTLE_ENDIAN
+		// RGBA8888
+		formats.push_back(Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0));
+#else
+		// ABGR8888
+		formats.push_back(Graphics::PixelFormat(4, 8, 8, 8, 8, 0, 8, 16, 24));
+#endif
+#if !USE_FORCED_GL
+	}
+#endif
+#endif
+
+	// RGB555, this is used by SCUMM HE 16 bit games.
+	// This is not natively supported by OpenGL ES implementations, we convert
+	// the pixel format internally.
+	formats.push_back(Graphics::PixelFormat(2, 5, 5, 5, 0, 10, 5, 0, 0));
+
+	formats.push_back(Graphics::PixelFormat::createFormatCLUT8());
+
+	return formats;
+}
+#endif
+
+namespace {
+const OSystem::GraphicsMode glStretchModes[] = {
+	{"center", _s("Center"), STRETCH_CENTER},
+	{"pixel-perfect", _s("Pixel-perfect scaling"), STRETCH_INTEGRAL},
+	{"fit", _s("Fit to window"), STRETCH_FIT},
+	{"stretch", _s("Stretch to window"), STRETCH_STRETCH},
+	{nullptr, nullptr, 0}
+};
+
+} // End of anonymous namespace
+
+const OSystem::GraphicsMode *OpenGLGraphicsManager::getSupportedStretchModes() const {
+	return glStretchModes;
+}
+
+int OpenGLGraphicsManager::getDefaultStretchMode() const {
+	return STRETCH_FIT;
+}
+
+bool OpenGLGraphicsManager::setStretchMode(int mode) {
+	assert(getTransactionMode() != kTransactionNone);
+
+	if (mode == _stretchMode)
+		return true;
+
+	// Check this is a valid mode
+	const OSystem::GraphicsMode *sm = getSupportedStretchModes();
+	bool found = false;
+	while (sm->name) {
+		if (sm->id == mode) {
+			found = true;
+			break;
+		}
+		sm++;
+	}
+	if (!found) {
+		warning("unknown stretch mode %d", mode);
+		return false;
+	}
+
+	_stretchMode = mode;
+	return true;
+}
+
+int OpenGLGraphicsManager::getStretchMode() const {
+	return _stretchMode;
+}
 
 void OpenGLGraphicsManager::beginGFXTransaction() {
 	assert(_transactionMode == kTransactionNone);

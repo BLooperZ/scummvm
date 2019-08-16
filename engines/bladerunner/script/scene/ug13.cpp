@@ -234,11 +234,11 @@ bool SceneScriptUG13::ClickedOnExit(int exitId) {
 			Loop_Actor_Travel_Stairs(kActorMcCoy, 11, true, kAnimationModeIdle);
 			Footstep_Sound_Override_Off();
 			// This path is unreachable in the original game
-			// TEST maybe restore this condition. Probably occurs before meeting with Guzza is set
-			if (_vm->_cutContent) {
+			// Restore this condition only for hard mode. Probably occurs before meeting with Guzza is set
+			if (_vm->_cutContent && Query_Difficulty_Level() == kGameDifficultyHard) {
 				if (!Game_Flag_Query(kFlagCallWithGuzza)) {
 					// Passage to UG18 is locked
-					// This two lines of dialogue is not in the code of the original game
+					// These lines of dialogue are not in the code of the original game
 					if (Actor_Query_Goal_Number(kActorTransient) == 391
 					    || Actor_Query_Goal_Number(kActorTransient) == 395
 					    || Actor_Query_Goal_Number(kActorTransient) == 599
@@ -304,7 +304,11 @@ void SceneScriptUG13::ActorChangedGoal(int actorId, int newGoal, int oldGoal, bo
 
 void SceneScriptUG13::PlayerWalkedIn() {
 	if (Game_Flag_Query(kFlagUG18toUG13)) {
+#if BLADERUNNER_ORIGINAL_BUGS
 		Loop_Actor_Walk_To_XYZ(kActorMcCoy, -389.0f, 143.0f, -844.0f, 0, false, false, false);
+#else
+		Actor_Set_At_XYZ(kActorMcCoy, -389.0f, 143.0f, -844.0f, 325);
+#endif // BLADERUNNER_ORIGINAL_BUGS
 		Actor_Face_Heading(kActorMcCoy, 325, false);
 		Footstep_Sound_Override_On(3);
 		Loop_Actor_Travel_Stairs(kActorMcCoy, 11, false, kAnimationModeIdle);

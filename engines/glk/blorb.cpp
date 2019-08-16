@@ -21,6 +21,7 @@
  */
 
 #include "glk/blorb.h"
+#include "common/memstream.h"
 
 namespace Glk {
 
@@ -64,16 +65,31 @@ const Common::ArchiveMemberPtr Blorb::getMember(const Common::String &name) cons
 
 Common::SeekableReadStream *Blorb::createReadStreamForMember(const Common::String &name) const {
 	for (uint idx = 0; idx < _chunks.size(); ++idx) {
-		if (_chunks[idx]._filename.equalsIgnoreCase(name)) {
+		const ChunkEntry &ce = _chunks[idx];
+
+		if (ce._filename.equalsIgnoreCase(name)) {
 			Common::File f;
 			if ((!_filename.empty() && !f.open(_filename)) ||
 					(_filename.empty() && !f.open(_fileNode)))
 				error("Reading failed");
 
-			f.seek(_chunks[idx]._offset);
-			Common::SeekableReadStream *result = f.readStream(_chunks[idx]._size);
-			f.close();
+			f.seek(ce._offset);
+			Common::SeekableReadStream *result;
+			
+			if (ce._id == ID_FORM) {
+				// AIFF chunks need to be wrapped in a FORM chunk for ScummVM decoder
+				byte *sound = (byte *)malloc(ce._size + 8);
+				WRITE_BE_UINT32(sound, MKTAG('F', 'O', 'R', 'M'));
+				WRITE_BE_UINT32(sound + 4, 0);
+				f.read(sound + 8, ce._size);
+				assert(READ_BE_UINT32(sound + 8) == ID_AIFF);
 
+				result = new Common::MemoryReadStream(sound, ce._size + 8, DisposeAfterUse::YES);
+			} else {
+				result = f.readStream(ce._size);
+			}
+
+			f.close();
 			return result;
 		}
 	}
@@ -215,7 +231,57 @@ bool Blorb::isBlorb(const Common::String &filename, uint32 type) {
 
 bool Blorb::hasBlorbExt(const Common::String &filename) {
 	return filename.hasSuffixIgnoreCase(".blorb") || filename.hasSuffixIgnoreCase(".zblorb")
-		|| filename.hasSuffixIgnoreCase(".gblorb") || filename.hasSuffixIgnoreCase(".blb");
+		|| filename.hasSuffixIgnoreCase(".gblorb") || filename.hasSuffixIgnoreCase(".blb")
+		|| filename.hasSuffixIgnoreCase(".a3r");
+}
+
+void Blorb::getBlorbFilenames(const Common::String &srcFilename, Common::StringArray &filenames,
+		InterpreterType interpType, const Common::String &gameId) {
+	// Strip off the source filename extension
+	Common::String filename = srcFilename;
+	if (!filename.contains('.')) {
+		filename += '.';
+	} else {
+		while (filename[filename.size() - 1] != '.')
+			filename.deleteLastChar();
+	}
+
+	// Add in the different possible filenames
+	filenames.clear();
+	filenames.push_back(filename + "blorb");
+	filenames.push_back(filename + "blb");
+
+	switch (interpType) {
+	case INTERPRETER_ALAN3:
+		filenames.push_back(filename + "a3r");
+		break;
+	case INTERPRETER_FROTZ:
+		filenames.push_back(filename + "zblorb");
+		getInfocomBlorbFilenames(filenames, gameId);
+		break;
+	case INTERPRETER_GLULXE:
+		filenames.push_back(filename + "gblorb");
+		break;
+	default:
+		break;
+	}
+}
+
+void Blorb::getInfocomBlorbFilenames(Common::StringArray &filenames, const Common::String &gameId) {
+	if (gameId == "beyondzork")
+		filenames.push_back("beyondzork.blb");
+	else if (gameId == "journey")
+		filenames.push_back("journey.blb");
+	else if (gameId == "lurkinghorror")
+		filenames.push_back("lurking.blb");
+	else if (gameId == "questforexcalibur")
+		filenames.push_back("arthur.blb");
+	else if (gameId == "sherlockriddle")
+		filenames.push_back("sherlock.blb");
+	else if (gameId == "shogun")
+		filenames.push_back("shogun.blb");
+	else if (gameId == "zork0")
+		filenames.push_back("zorkzero.blb");
 }
 
 } // End of namespace Glk

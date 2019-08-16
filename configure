@@ -662,6 +662,26 @@ engine_disable_all() {
 	done
 }
 
+# Enable all unstable engines
+engine_enable_all_unstable() {
+	for engine in $_engines; do
+		engine_build_default=`get_engine_build_default $engine`
+		if test $engine_build_default = no ; then
+			set_var _engine_${engine}_build "yes"
+		fi
+	done
+}
+
+# Disable all unstable engines
+engine_disable_all_unstable() {
+	for engine in $_engines; do
+		engine_build_default=`get_engine_build_default $engine`
+		if test $engine_build_default = no ; then
+			set_var _engine_${engine}_build "no"
+		fi
+	done
+}
+
 # Enable the given engine
 engine_enable() {
 	# Get the parameter
@@ -982,6 +1002,10 @@ Game engines:
   --enable-all-engines     enable all engines, including those which are
                            broken or unsupported
   --disable-all-engines    disable all engines
+  --enable-all-unstable-engines     enable the engines which are
+                                    broken or unsupported
+  --disable-all-unstable-engines    disable only the engines which are
+                                    broken or unsupported
   --enable-engine=<engine name>[,<engine name>...] enable engine(s) listed
   --disable-engine=<engine name>[,<engine name>...] disable engine(s) listed
   --enable-engine-static=<engine name>[,<engine name>...]
@@ -1444,6 +1468,12 @@ for ac_option in $@; do
 	--disable-all-engines)
 		engine_disable_all
 		;;
+	--enable-all-unstable-engines)
+		engine_enable_all_unstable
+		;;
+	--disable-all-unstable-engines)
+		engine_disable_all_unstable
+		;;
 	--enable-engine=* | --enable-engines=*)
 		for engine_name in `echo $ac_option | cut -d '=' -f 2- | tr ',' '\n'`; do
 			engine_enable "${engine_name}"
@@ -1748,7 +1778,7 @@ else
 fi
 
 case $_host in
-caanoo | gp2x | gp2xwiz | openpandora | ps2 | psp2)
+arm-*riscos | caanoo | gp2x | gp2xwiz | openpandora | ps2 | psp | psp2 | switch)
 	if test "$_debug_build" = auto; then
 		# If you want to debug one of these platforms, use '--disable-optimizations --enable-debug'
 		_debug_build=no
@@ -2780,7 +2810,7 @@ case $_host_os in
 		;;
 	mingw*)
 		append_var DEFINES "-DWIN32"
-		append_var DEFINES "-D__USE_MINGW_ANSI_STDIO=0"
+		# append_var DEFINES "-D__USE_MINGW_ANSI_STDIO=0"  # Modern MinGW does not need it
 		append_var LDFLAGS "-static-libgcc -static-libstdc++"
 		append_var LIBS "-lmingw32 -lwinmm -lgdi32"
 		append_var OBJS "dists/scummvm.o"
@@ -2895,6 +2925,7 @@ case $_host_os in
 		;;
 	switch)
 		_pkgconfig="$DEVKITPRO/portlibs/switch/bin/aarch64-none-elf-pkg-config"
+		_libcurlpath="$DEVKITPRO/portlibs/switch/bin"
 		_sdlpath="$DEVKITPRO/portlibs/switch/bin"
 		append_var DEFINES "-DSWITCH -D__SWITCH__ -DNINTENDO_SWITCH"
 		append_var CXXFLAGS "-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE -ftls-model=local-exec"
@@ -3228,7 +3259,7 @@ if test -n "$_host"; then
 		*mingw32*)
 			_sdlconfig=$_host-sdl-config
 			_windres=$_host-windres
-			_ar="$_host-ar cru"
+			_ar="$_host-ar cr"
 			_ranlib=$_host-ranlib
 			;;
 		mips-sgi*)
@@ -3402,6 +3433,10 @@ if test -n "$_host"; then
 			;;
 		switch)
 			_backend="switch"
+			# Switch port crashes when switching between SDL2 and OpenGL
+			# graphics. But OpenGL works when it is enabled from the start.
+			# This might be related to a known crash on OpenGL de-init due
+			# to the OpenGL implementation on this platform.
 			_opengl_mode=gles2
 			_vkeybd=yes
 			_port_mk="backends/platform/sdl/switch/switch.mk"
@@ -5706,6 +5741,7 @@ vpath %.asm \$(srcdir)
 vpath %.s \$(srcdir)
 vpath %.S \$(srcdir)
 vpath %.rc \$(srcdir)
+vpath %.md \$(srcdir)
 include \$(srcdir)/Makefile
 EOF
 

@@ -23,6 +23,9 @@ endif
 ifdef DIST_FILES_ENGINEDATA
 	cp $(DIST_FILES_ENGINEDATA) $(APP_NAME)/data/
 endif
+ifdef DIST_FILES_VKEYBD
+	cp $(DIST_FILES_VKEYBD) $(APP_NAME)/data/
+endif
 ifdef DYNAMIC_MODULES
 	mkdir -p $(APP_NAME)/plugins
 	cp $(PLUGINS) $(APP_NAME)/plugins/
@@ -48,7 +51,7 @@ riscosdist: $(APP_NAME)/docs/ScummVM,3d6 # $(APP_NAME)/docs/de/ScummVM,3d6 $(APP
 README=${srcdir}/README.md
 NEWS=${srcdir}/NEWS.md
 $(APP_NAME)/docs/de/ScummVM,3d6: README=${srcdir}/doc/de/LIESMICH
-$(APP_NAME)/docs/de/ScummVM,3d6: NEWS=${srcdir}/doc/de/NEUES
+$(APP_NAME)/docs/de/ScummVM,3d6: NEWS=${srcdir}/doc/de/NEUES.md
 $(APP_NAME)/docs/cz/ScummVM,3d6: README=${srcdir}/doc/cz/PrectiMe
 $(APP_NAME)/docs/se/ScummVM,3d6: README=${srcdir}/doc/se/LasMig
 
