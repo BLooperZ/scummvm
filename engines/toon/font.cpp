@@ -108,7 +108,7 @@ void FontRenderer::renderText(int16 x, int16 y, const Common::String &origText, 
 
 	if (_vm->_language == Common::HE_ISR) {
 		uint32 ln = strlen((const char *) text);
-		byte *rev = new byte[ln + 1];
+		rev = new byte[ln + 1];
 		assert(rev);
 
 		for (uint32 l = 0; l < ln; l++) {
@@ -320,7 +320,7 @@ void FontRenderer::renderMultiLineText(int16 x, int16 y, const Common::String &o
 
 		if (_vm->_language == Common::HE_ISR) {
 			uint32 ln = strlen((const char *) line);
-			byte *rev = new byte[ln + 1];
+			rev = new byte[ln + 1];
 			assert(rev);
 
 			for (uint32 l = 0; l < ln; l++) {
