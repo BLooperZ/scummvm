@@ -27,6 +27,7 @@
 #include "bladerunner/audio_speech.h"
 
 #include "common/debug.h"
+#include "common/str-bidi.h"
 
 #include "graphics/font.h"
 #include "graphics/fonts/ttf.h"
@@ -374,18 +375,21 @@ void Subtitles::draw(Graphics::Surface &s) {
 	int y = s.h - (kMarginBottom + MAX(kPreferedLine, lines.size()) * _font->getFontHeight());
 
 	for (uint i = 0; i < lines.size(); ++i, y += _font->getFontHeight()) {
+
+		Common::U32String line = convertBiDiU32String(lines[i]);
+
 		switch (_subtitlesInfo.fontType) {
 			case Subtitles::kSubtitlesFontTypeInternal:
 				// shadow/outline is part of the font color data
-				_font->drawString(&s, lines[i], 0, y, s.w, 0, Graphics::kTextAlignCenter);
+				_font->drawString(&s, line, 0, y, s.w, 0, Graphics::kTextAlignCenter);
 				break;
 			case Subtitles::kSubtitlesFontTypeTTF:
-				_font->drawString(&s, lines[i], -1, y    , s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
-				_font->drawString(&s, lines[i],  0, y - 1, s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
-				_font->drawString(&s, lines[i],  1, y    , s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
-				_font->drawString(&s, lines[i],  0, y + 1, s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
+				_font->drawString(&s, line, -1, y    , s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
+				_font->drawString(&s, line,  0, y - 1, s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
+				_font->drawString(&s, line,  1, y    , s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
+				_font->drawString(&s, line,  0, y + 1, s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
 
-				_font->drawString(&s, lines[i],  0, y    , s.w, s.format.RGBToColor(255, 255, 255), Graphics::kTextAlignCenter);
+				_font->drawString(&s, line,  0, y    , s.w, s.format.RGBToColor(255, 255, 255), Graphics::kTextAlignCenter);
 				break;
 		}
 	}
