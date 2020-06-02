@@ -94,6 +94,10 @@ static const char *directoryGlobs[] = {
 	"programs",
 	"princess",
 	"sleepcub",
+	"demo",
+	"imo",
+	"samdemo",
+	"babademo",
 	0
 };
 
@@ -102,6 +106,7 @@ public:
 	ComposerMetaEngine() : AdvancedMetaEngine(Composer::gameDescriptions, sizeof(Composer::ComposerGameDescription), composerGames) {
 		_maxScanDepth = 2;
 		_directoryGlobs = directoryGlobs;
+		_matchFullPaths = true;
 	}
 
 	const char *getEngineId() const override {

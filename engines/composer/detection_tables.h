@@ -98,7 +98,7 @@ static const ComposerGameDescription gameDescriptions[] = {
 			"imoking",
 			0,
 			{
-				{"book.ini", GAME_CONFIGFILE, "2b3eb997e8f55a03e81f67563c40adf4", 3337},
+				{"imo/book.ini", GAME_CONFIGFILE, "2b3eb997e8f55a03e81f67563c40adf4", 3337},
 				AD_LISTEND
 			},
 			Common::HE_ISR,
@@ -132,7 +132,7 @@ static const ComposerGameDescription gameDescriptions[] = {
 			"babayaga",
 			"Magic Tales: Baba Yaga and the Magic Geese Demo",
 			{
-				{"by_demo.ini", GAME_CONFIGFILE, "4a87806683add232916298d6b62b9420", 224},
+				{"babademo/by_demo.ini", GAME_CONFIGFILE, "4a87806683add232916298d6b62b9420", 224},
 				AD_LISTEND
 			},
 			Common::EN_ANY,
@@ -149,7 +149,24 @@ static const ComposerGameDescription gameDescriptions[] = {
 			"littlesamurai",
 			"Magic Tales: The Little Samurai Demo",
 			{
-				{"ls_demo.ini", GAME_CONFIGFILE, "462cad83006721d2491dde7ef7a2d243", 223},
+				{"samdemo/ls_demo.ini", GAME_CONFIGFILE, "462cad83006721d2491dde7ef7a2d243", 223},
+				AD_LISTEND
+			},
+			Common::EN_ANY,
+			Common::kPlatformWindows,
+			ADGF_USEEXTRAASTITLE | ADGF_DEMO,
+			GUIO2(GUIO_NOASPECT, GUIO_NOMIDI)
+		},
+		GType_ComposerV1
+	},
+
+	// Demo Launcher from Imo and the King Hebrew CD
+	{
+		{
+			"magictales",
+			"Magic Tales Demo: Baby Yaga, Samurai, Imo",
+			{
+				{"demo/demo.ini", GAME_CONFIGFILE, NULL, -1},
 				AD_LISTEND
 			},
 			Common::EN_ANY,
@@ -176,6 +193,7 @@ static const ComposerGameDescription gameDescriptions[] = {
 		},
 		GType_ComposerV1
 	},
+
 
 	// Little Samurai Demo from Imo and the King Hebrew CD
 	{
@@ -487,7 +505,8 @@ static const ComposerGameDescription gameDescriptions[] = {
 			"darby",
 			0,
 			{
-				{"page99.rsc", GAME_SCRIPTFILE, "183463d18c050563dcdec2d9f9670515", -1},
+				{"programs/book.ini", GAME_CONFIGFILE, NULL, -1},
+				{"data/page99.rsc", GAME_SCRIPTFILE, "183463d18c050563dcdec2d9f9670515", -1},
 				AD_LISTEND
 			},
 			Common::HE_ISR,

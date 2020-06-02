@@ -47,7 +47,7 @@ ComposerEngine::ComposerEngine(OSystem *syst, const ComposerGameDescription *gam
 	_currentTime = 0;
 	_lastTime = 0;
 	_needsUpdate = true;
-	_directoriesToStrip = 1;
+	_directoriesToStrip = 0;
 	_mouseVisible = true;
 	_mouseEnabled = false;
 	_mouseSpriteId = 0;
@@ -85,10 +85,7 @@ Common::Error ComposerEngine::run() {
 
 	if (!loadDetectedConfigFile(_bookIni)) {
 		// Config files for Darby the Dragon are located in subdirectory
-		_directoriesToStrip = 0;
-		if (!_bookIni.loadFromFile("programs/book.ini")) {
-			error("failed to find book.ini");
-		}
+		error("failed to find book.ini");
 	}
 
 	uint width = 640;
