@@ -101,7 +101,7 @@ void EditTextWidget::drawWidget() {
 
 	g_gui.theme()->drawText(
 			Common::Rect(_x + 2 + _leftPadding, _y + 1, _x + _leftPadding + getEditRect().width() + 2, _y + _h),
-			_editString, _state, Graphics::kTextAlignLeft, ThemeEngine::kTextInversionNone,
+			_editString, _state, _align, ThemeEngine::kTextInversionNone,
 			-_editScrollOffset, false, _font, ThemeEngine::kFontColorNormal, true, _textDrawableArea);
 }
 

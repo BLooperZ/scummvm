@@ -47,6 +47,7 @@ void EditableWidget::init() {
 
 	_editScrollOffset = 0;
 
+	_align = Graphics::kTextAlignLeft; // set to Graphics::kTextAlignRight on RTL layout, or for testing;
 	_font = ThemeEngine::kFontStyleBold;
 	_inversion = ThemeEngine::kTextInversionNone;
 }
@@ -286,8 +287,11 @@ void EditableWidget::drawCaret(bool erase) {
 
 	Common::Rect editRect = getEditRect();
 
-	int x = editRect.left;
 	int y = editRect.top;
+	int x = editRect.left;
+	if (_align == Graphics::kTextAlignRight) {
+		x = _editScrollOffset + editRect.right - g_gui.getStringWidth(_editString, _font);
+	}
 
 	const int caretOffset = getCaretOffset();
 	x += caretOffset;
@@ -328,7 +332,7 @@ void EditableWidget::drawCaret(bool erase) {
 		width = MIN(editRect.width() - caretOffset, width);
 		if (width > 0) {
 			g_gui.theme()->drawText(Common::Rect(x, y, x + width, y + editRect.height()), character,
-			                        _state, Graphics::kTextAlignLeft, _inversion, 0, false, _font,
+			                        _state, _align, _inversion, 0, false, _font,
 			                        ThemeEngine::kFontColorNormal, true, _textDrawableArea);
 		}
 	}
