@@ -74,14 +74,14 @@ void EditTextWidget::handleMouseDown(int x, int y, int button, int clickCount) {
 
 	x += _editScrollOffset;
 
-	int width = 0;
+	int width = _drawAlign == Graphics::kTextAlignRight ? _editScrollOffset + getEditRect().width() - g_gui.getStringWidth(_editString, _font) : 0;
 	uint i;
 
 	uint last = 0;
 	for (i = 0; i < _editString.size(); ++i) {
 		const uint cur = _editString[i];
 		width += g_gui.getCharWidth(cur, _font) + g_gui.getKerningOffset(last, cur, _font);
-		if (width >= x)
+		if (width >= x && width > _editScrollOffset + _leftPadding)
 			break;
 		last = cur;
 	}
@@ -101,7 +101,7 @@ void EditTextWidget::drawWidget() {
 
 	g_gui.theme()->drawText(
 			Common::Rect(_x + 2 + _leftPadding, _y + 1, _x + _leftPadding + getEditRect().width() + 2, _y + _h),
-			_editString, _state, _align, ThemeEngine::kTextInversionNone,
+			_editString, _state, _drawAlign, ThemeEngine::kTextInversionNone,
 			-_editScrollOffset, false, _font, ThemeEngine::kFontColorNormal, true, _textDrawableArea);
 }
 

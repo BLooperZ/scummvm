@@ -575,13 +575,11 @@ void ListWidget::drawWidget() {
 			buffer = _editString;
 			color = _editColor;
 			adjustOffset();
-			g_gui.theme()->drawText(Common::Rect(_x + r.left, y, _x + r.right, y + fontHeight - 2), buffer, _state,
-			                        Graphics::kTextAlignLeft, inverted, pad, true, ThemeEngine::kFontStyleBold, color);
 		} else {
 			buffer = _list[pos];
-			g_gui.theme()->drawText(Common::Rect(_x + r.left, y, _x + r.right, y + fontHeight - 2), buffer, _state,
-			                        Graphics::kTextAlignLeft, inverted, pad, true, ThemeEngine::kFontStyleBold, color);
 		}
+		g_gui.theme()->drawText(Common::Rect(_x + r.left, y, _x + r.right, y + fontHeight - 2), buffer, _state,
+						_drawAlign, inverted, pad, true, ThemeEngine::kFontStyleBold, color);
 	}
 }
 

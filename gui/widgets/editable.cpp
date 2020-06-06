@@ -47,7 +47,8 @@ void EditableWidget::init() {
 
 	_editScrollOffset = 0;
 
-	_align = Graphics::kTextAlignLeft; // set to Graphics::kTextAlignRight on RTL layout, or for testing;
+	_align = Graphics::kTextAlignRight; // set to Graphics::kTextAlignRight on RTL layout, or for testing;
+	_drawAlign = _align;
 	_font = ThemeEngine::kFontStyleBold;
 	_inversion = ThemeEngine::kTextInversionNone;
 }
@@ -266,18 +267,8 @@ void EditableWidget::defaultKeyDownHandler(Common::KeyState &state, bool &dirty,
 }
 
 int EditableWidget::getCaretOffset() const {
-	int caretpos = 0;
-
-	uint last = 0;
-	for (int i = 0; i < _caretPos; ++i) {
-		const uint cur = _editString[i];
-		caretpos += g_gui.getCharWidth(cur, _font) + g_gui.getKerningOffset(last, cur, _font);
-		last = cur;
-	}
-
-	caretpos -= _editScrollOffset;
-
-	return caretpos;
+	Common::String substr(_editString.c_str(), _caretPos);
+	return g_gui.getStringWidth(substr, _font) - _editScrollOffset;
 }
 
 void EditableWidget::drawCaret(bool erase) {
@@ -290,7 +281,14 @@ void EditableWidget::drawCaret(bool erase) {
 	int y = editRect.top;
 	int x = editRect.left;
 	if (_align == Graphics::kTextAlignRight) {
-		x = _editScrollOffset + editRect.right - g_gui.getStringWidth(_editString, _font);
+		int strVisibleWidth = g_gui.getStringWidth(_editString, _font) - _editScrollOffset;
+		if (strVisibleWidth > editRect.width()) {
+			_drawAlign = Graphics::kTextAlignLeft;
+			strVisibleWidth = editRect.width();
+		} else {
+			_drawAlign = _align;
+		}
+		x = editRect.right - strVisibleWidth;
 	}
 
 	const int caretOffset = getCaretOffset();
@@ -332,7 +330,7 @@ void EditableWidget::drawCaret(bool erase) {
 		width = MIN(editRect.width() - caretOffset, width);
 		if (width > 0) {
 			g_gui.theme()->drawText(Common::Rect(x, y, x + width, y + editRect.height()), character,
-			                        _state, _align, _inversion, 0, false, _font,
+			                        _state, _drawAlign, _inversion, 0, false, _font,
 			                        ThemeEngine::kFontColorNormal, true, _textDrawableArea);
 		}
 	}
