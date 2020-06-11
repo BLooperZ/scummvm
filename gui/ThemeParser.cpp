@@ -29,6 +29,8 @@
 #include "common/system.h"
 #include "common/tokenizer.h"
 
+#define RTL_MODE 1
+
 namespace GUI {
 
 struct TextDataInfo {
@@ -81,7 +83,11 @@ static TextColor parseTextColorId(const Common::String &name) {
 }
 
 static Graphics::TextAlign parseTextHAlign(const Common::String &val) {
-	if (val == "left")
+	if (val == "start")
+		return RTL_MODE ? Graphics::kTextAlignRight : Graphics::kTextAlignLeft;
+	else if (val == "end")
+		return RTL_MODE ? Graphics::kTextAlignLeft : Graphics::kTextAlignRight;
+	else if (val == "left")
 		return Graphics::kTextAlignLeft;
 	else if (val == "right")
 		return Graphics::kTextAlignRight;
@@ -489,6 +495,10 @@ bool ThemeParser::parseDrawStep(ParserNode *stepNode, Graphics::DrawStep *drawst
 					drawstep->x = x;
 				else if (val == "center")
 					drawstep->xAlign = Graphics::DrawStep::kVectorAlignCenter;
+				else if (val == "start")
+					drawstep->xAlign = RTL_MODE ? Graphics::DrawStep::kVectorAlignRight : Graphics::DrawStep::kVectorAlignLeft;
+				else if (val == "end")
+					drawstep->xAlign = RTL_MODE ? Graphics::DrawStep::kVectorAlignLeft : Graphics::DrawStep::kVectorAlignRight;
 				else if (val == "left")
 					drawstep->xAlign = Graphics::DrawStep::kVectorAlignLeft;
 				else if (val == "right")
@@ -561,6 +571,10 @@ bool ThemeParser::parseDrawStep(ParserNode *stepNode, Graphics::DrawStep *drawst
 					drawstep->x = x;
 				else if (val == "center")
 					drawstep->xAlign = Graphics::DrawStep::kVectorAlignCenter;
+				else if (val == "start")
+					drawstep->xAlign = RTL_MODE ? Graphics::DrawStep::kVectorAlignRight : Graphics::DrawStep::kVectorAlignLeft;
+				else if (val == "end")
+					drawstep->xAlign = RTL_MODE ? Graphics::DrawStep::kVectorAlignLeft : Graphics::DrawStep::kVectorAlignRight;
 				else if (val == "left")
 					drawstep->xAlign = Graphics::DrawStep::kVectorAlignLeft;
 				else if (val == "right")
@@ -701,7 +715,7 @@ bool ThemeParser::parserCallback_widget(ParserNode *node) {
 				return parserError("Corrupted height value in key for " + var);
 		}
 
-		Graphics::TextAlign alignH = Graphics::kTextAlignLeft;
+		Graphics::TextAlign alignH = RTL_MODE ? Graphics::kTextAlignRight : Graphics::kTextAlignLeft;
 
 		if (node->values.contains("textalign")) {
 			if ((alignH = parseTextHAlign(node->values["textalign"])) == Graphics::kTextAlignInvalid)
@@ -956,7 +970,7 @@ bool ThemeParser::parseCommonLayoutProps(ParserNode *node, const Common::String 
 
 
 	if (node->values.contains("textalign")) {
-		Graphics::TextAlign alignH = Graphics::kTextAlignLeft;
+		Graphics::TextAlign alignH = RTL_MODE ? Graphics::kTextAlignRight : Graphics::kTextAlignLeft;
 
 		if ((alignH = parseTextHAlign(node->values["textalign"])) == Graphics::kTextAlignInvalid)
 			return parserError("Invalid value for text alignment.");
