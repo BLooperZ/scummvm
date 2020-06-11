@@ -34,6 +34,8 @@
 #include "graphics/surface.h"
 #endif
 
+#define RTL_MODE 1
+
 namespace GUI {
 
 void ThemeLayout::importLayout(ThemeLayout *layout) {
@@ -318,7 +320,10 @@ void ThemeLayoutStacked::reflowLayoutVertical(Widget *widgetChain) {
 		switch (_itemAlign) {
 		case kItemAlignStart:
 		default:
-			_children[i]->offsetX(_padding.left);
+			if (RTL_MODE)
+				_children[i]->offsetX(_w - _children[i]->getWidth() - _padding.left);
+			else
+				_children[i]->offsetX(_padding.left);
 			break;
 		case kItemAlignCenter:
 			// Center child if it this has been requested *and* the space permits it.
@@ -329,7 +334,10 @@ void ThemeLayoutStacked::reflowLayoutVertical(Widget *widgetChain) {
 			}
 			break;
 		case kItemAlignEnd:
-			_children[i]->offsetX(_w - _children[i]->getWidth() - _padding.right);
+			if (RTL_MODE)
+				_children[i]->offsetX(_padding.right);
+			else
+				_children[i]->offsetX(_w - _children[i]->getWidth() - _padding.right);
 			break;
 		case kItemAlignStretch:
 			_children[i]->offsetX(_padding.left);
@@ -444,6 +452,13 @@ void ThemeLayoutStacked::reflowLayoutHorizontal(Widget *widgetChain) {
 			_w += neww;
 			for (uint j = resize[i] + 1; j < _children.size(); ++j)
 				_children[j]->offsetX(neww);
+		}
+	}
+
+	// // flip on rtl layout, probably needs fixing
+	if (RTL_MODE) {
+		for (uint i = 0; i < _children.size(); ++i) {
+			_children[i]->offsetX(_w - _children[i]->getWidth() - 2 * _children[i]->_x + _padding.left - _padding.right);
 		}
 	}
 }
