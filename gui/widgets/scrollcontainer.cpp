@@ -26,6 +26,8 @@
 
 #include "gui/ThemeEval.h"
 
+# define RTL_MODE 1
+
 namespace GUI {
 
 ScrollContainerWidget::ScrollContainerWidget(GuiObject *boss, int x, int y, int w, int h, uint32 reflowCmd)
@@ -42,7 +44,8 @@ void ScrollContainerWidget::init() {
 	setFlags(WIDGET_ENABLED);
 	_type = kScrollContainerWidget;
 	_backgroundType = ThemeEngine::kWidgetBackgroundPlain;
-	_verticalScroll = new ScrollBarWidget(this, _w-16, 0, 16, _h);
+	int scrollbarX = RTL_MODE ? 0 : _w - 16;
+	_verticalScroll = new ScrollBarWidget(this, scrollbarX, 0, 16, _h);
 	_verticalScroll->setTarget(this);
 	_scrolledX = 0;
 	_scrolledY = 0;
@@ -80,7 +83,8 @@ void ScrollContainerWidget::recalc() {
 	_verticalScroll->_currentPos = _scrolledY;
 	_verticalScroll->_entriesPerPage = _limitH;
 	_verticalScroll->_singleStep = kLineHeight;
-	_verticalScroll->setPos(_w - scrollbarWidth, _scrolledY);
+	int scrollbarX = RTL_MODE ? 0 : _w - scrollbarWidth;
+	_verticalScroll->setPos(scrollbarX, _scrolledY);
 	_verticalScroll->setSize(scrollbarWidth, _limitH-1);
 }
 

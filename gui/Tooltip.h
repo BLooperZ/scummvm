@@ -35,6 +35,8 @@ class Tooltip : public Dialog {
 private:
 	Dialog *_parent;
 
+	Graphics::TextAlign _align;
+
 public:
 	Tooltip();
 

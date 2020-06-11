@@ -26,6 +26,8 @@
 
 #include "gui/ThemeEval.h"
 
+#define RTL_MODE 1
+
 namespace GUI {
 
 //
@@ -49,6 +51,8 @@ PopUpDialog::PopUpDialog(Widget *boss, const Common::String &name, int clickX, i
 		_lastRead(-1) {
 	_backgroundType = ThemeEngine::kDialogBackgroundNone;
 	_w = _boss->getWidth();
+	_align = RTL_MODE ? Graphics::kTextAlignRight : Graphics::kTextAlignLeft; // set to Graphics::kTextAlignRight on RTL layout, or for testing;
+
 }
 
 void PopUpDialog::open() {
@@ -296,7 +300,14 @@ int PopUpDialog::findItem(int x, int y) const {
 	if (x >= 0 && x < _w && y >= 0 && y < _h) {
 		if (_twoColumns) {
 			uint entry = (y - 2) / _lineHeight;
-			if (x > _w / 2) {
+			int sep = _w / 2;
+			if (_align == Graphics::kTextAlignRight) {
+				// on right align the columns are flipped
+				// so we flip the inequality
+				x = -x;
+				sep = -sep;
+			}
+			if (x > sep) {
 				entry += _entriesPerColumn;
 
 				if (entry >= _entries.size())
@@ -371,11 +382,14 @@ void PopUpDialog::drawMenuEntry(int entry, bool hilite) {
 		if (_entries.size() & 1)
 			n++;
 
+		int offset = _w / 2;
 		if (entry >= n) {
-			x = _x + 1 + _w / 2;
+			x = _x + 1;
+			x += _align == Graphics::kTextAlignRight ? 0 : offset;
 			y = _y + 1 + _lineHeight * (entry - n);
 		} else {
 			x = _x + 1;
+			x += _align == Graphics::kTextAlignRight ? offset : 0;
 			y = _y + 1 + _lineHeight * entry;
 		}
 
@@ -395,7 +409,7 @@ void PopUpDialog::drawMenuEntry(int entry, bool hilite) {
 		g_gui.theme()->drawText(
 			Common::Rect(x + 1, y + 2, x + w, y + 2 + _lineHeight),
 			name, hilite ? ThemeEngine::kStateHighlight : ThemeEngine::kStateEnabled,
-			Graphics::kTextAlignLeft, ThemeEngine::kTextInversionNone, _leftPadding
+			_align, ThemeEngine::kTextInversionNone, _leftPadding
 		);
 	}
 }

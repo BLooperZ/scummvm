@@ -26,6 +26,8 @@
 
 #include "gui/ThemeEval.h"
 
+#define RTL_MODE 1
+
 namespace GUI {
 
 enum {
@@ -225,6 +227,9 @@ void TabWidget::handleMouseDown(int x, int y, int button, int clickCount) {
 	if (x < 0)
 		return;
 
+	if (RTL_MODE)
+		x = _w + _x - x;
+
 	// Determine which tab was clicked
 	int tabID;
 	for (tabID = _firstVisibleTab; tabID <= _lastVisibleTab; ++tabID) {
@@ -244,6 +249,9 @@ void TabWidget::handleMouseMoved(int x, int y, int button) {
 
 	if (x < 0)
 		return;
+
+	if (RTL_MODE)
+		x = _w + _x - x;
 
 	// Determine which tab the mouse is on
 	int tabID;

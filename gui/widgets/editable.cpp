@@ -26,6 +26,8 @@
 #include "gui/gui-manager.h"
 #include "graphics/font.h"
 
+#define RTL_MODE 1
+
 namespace GUI {
 
 EditableWidget::EditableWidget(GuiObject *boss, int x, int y, int w, int h, const char *tooltip, uint32 cmd)
@@ -47,7 +49,7 @@ void EditableWidget::init() {
 
 	_editScrollOffset = 0;
 
-	_align = Graphics::kTextAlignRight; // set to Graphics::kTextAlignRight on RTL layout, or for testing;
+	_align = RTL_MODE ? Graphics::kTextAlignRight : Graphics::kTextAlignLeft; // set to Graphics::kTextAlignRight on RTL layout, or for testing;
 	_drawAlign = _align;
 	_font = ThemeEngine::kFontStyleBold;
 	_inversion = ThemeEngine::kTextInversionNone;
@@ -60,8 +62,11 @@ void EditableWidget::reflowLayout() {
 	Widget::reflowLayout();
 
 	_editScrollOffset = g_gui.getStringWidth(_editString, _font) - getEditRect().width();
-	if (_editScrollOffset < 0)
+	if (_editScrollOffset < 0) {
+		_drawAlign = _align;
 		_editScrollOffset = 0;
+	} else
+		_drawAlign = Graphics::kTextAlignLeft;
 }
 
 void EditableWidget::setEditString(const String &str) {

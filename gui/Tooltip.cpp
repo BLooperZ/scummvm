@@ -28,6 +28,8 @@
 #include "gui/Tooltip.h"
 #include "gui/ThemeEval.h"
 
+#define RTL_MODE 1
+
 namespace GUI {
 
 
@@ -35,6 +37,7 @@ Tooltip::Tooltip() :
 	Dialog(-1, -1, -1, -1), _maxWidth(-1), _parent(nullptr), _xdelta(0), _ydelta(0) {
 
 	_backgroundType = GUI::ThemeEngine::kDialogBackgroundTooltip;
+	_align = RTL_MODE ? Graphics::kTextAlignRight : Graphics::kTextAlignLeft;
 }
 
 void Tooltip::setup(Dialog *parent, Widget *widget, int x, int y) {
@@ -71,16 +74,16 @@ void Tooltip::drawDialog(DrawLayer layerToDraw) {
 
 	Dialog::drawDialog(layerToDraw);
 
-	int16 textX = _x + 3; // including 2px padding and 1px original code shift
+	int16 textX = _x;
 	int16 textY = _y + 3;
 	for (Common::StringArray::const_iterator i = _wrappedLines.begin(); i != _wrappedLines.end(); ++i, ++num) {
 		g_gui.theme()->drawText(
 			Common::Rect(textX, textY + num * h, textX + _w, textY + (num + 1) * h),
 			*i,
 			ThemeEngine::kStateEnabled,
-			Graphics::kTextAlignLeft,
+			_align,
 			ThemeEngine::kTextInversionNone,
-			0,
+			3, // including 2px padding and 1px original code shift
 			false,
 			ThemeEngine::kFontStyleTooltip,
 			ThemeEngine::kFontColorNormal,

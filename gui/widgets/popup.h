@@ -108,6 +108,7 @@ protected:
 
 	typedef Common::Array<Common::String> EntryList;
 	EntryList		_entries;
+	Graphics::TextAlign _align;
 
 public:
 	PopUpDialog(Widget *boss, const Common::String &name, int clickX, int clickY);

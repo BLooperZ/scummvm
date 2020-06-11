@@ -38,7 +38,8 @@ ListWidget::ListWidget(Dialog *boss, const String &name, const char *tooltip, ui
 
 	_entriesPerPage = 0;
 
-	_scrollBar = new ScrollBarWidget(this, _w - _scrollBarWidth, 0, _scrollBarWidth, _h);
+	int scrollbarX = _align == Graphics::kTextAlignRight ? 0 : _w - _scrollBarWidth;
+	_scrollBar = new ScrollBarWidget(this, scrollbarX, 0, _scrollBarWidth, _h);
 	_scrollBar->setTarget(this);
 
 	setFlags(WIDGET_ENABLED | WIDGET_CLEARBG | WIDGET_RETAIN_FOCUS | WIDGET_WANT_TICKLE | WIDGET_TRACK_MOUSE);
@@ -75,7 +76,8 @@ ListWidget::ListWidget(Dialog *boss, int x, int y, int w, int h, const char *too
 
 	_entriesPerPage = 0;
 
-	_scrollBar = new ScrollBarWidget(this, _w - _scrollBarWidth, 0, _scrollBarWidth, _h);
+	int scrollbarX = _align == Graphics::kTextAlignRight ? 0 : _w - _scrollBarWidth;
+	_scrollBar = new ScrollBarWidget(this, scrollbarX, 0, _scrollBarWidth, _h);
 	_scrollBar->setTarget(this);
 
 	setFlags(WIDGET_ENABLED | WIDGET_CLEARBG | WIDGET_RETAIN_FOCUS | WIDGET_WANT_TICKLE);
@@ -114,7 +116,9 @@ bool ListWidget::containsWidget(Widget *w) const {
 }
 
 Widget *ListWidget::findWidget(int x, int y) {
-	if (x >= _w - _scrollBarWidth)
+	if (_align == Graphics::kTextAlignRight && x <= _scrollBarWidth)
+		return _scrollBar;
+	else if (x >= _w - _scrollBarWidth)
 		return _scrollBar;
 
 	return this;
@@ -554,6 +558,9 @@ void ListWidget::drawWidget() {
 		Common::Rect r(getEditRect());
 		int pad = _leftPadding;
 
+		if (_drawAlign == Graphics::kTextAlignRight && _scrollBar->isVisible())
+			r.translate(_scrollBarWidth, 0);
+
 		// If in numbering mode, we first print a number prefix
 		if (_numberingMode != kListNumberingOff) {
 			buffer = Common::String::format("%2d. ", (pos + _numberingMode));
@@ -699,7 +706,8 @@ void ListWidget::reflowLayout() {
 	assert(_entriesPerPage > 0);
 
 	if (_scrollBar) {
-		_scrollBar->resize(_w - _scrollBarWidth, 0, _scrollBarWidth, _h);
+		int scrollbarX = _align == Graphics::kTextAlignRight ? 0 : _w - _scrollBarWidth;
+		_scrollBar->resize(scrollbarX, 0, _scrollBarWidth, _h);
 		scrollBarRecalc();
 		scrollToCurrent();
 	}
