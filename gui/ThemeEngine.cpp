@@ -1005,13 +1005,19 @@ void ThemeEngine::drawCheckbox(const Common::Rect &r, const Common::String &str,
 
 	const int checkBoxSize = MIN((int)r.height(), getFontHeight());
 
+	r2.left = RTL_MODE ? r.right - checkBoxSize : r2.left;
 	r2.bottom = r2.top + checkBoxSize;
 	r2.right = r2.left + checkBoxSize;
 
 	drawDD(dd, r2);
 
-	r2.left = r2.right + checkBoxSize;
-	r2.right = r.right;
+	if (RTL_MODE) {
+		r2.right = r2.left - checkBoxSize;
+		r2.left = r.left;
+	} else {
+		r2.left = r2.right + checkBoxSize;
+		r2.right = r.right;
+	}
 
 	if (r2.right > r2.left) {
 		drawDDText(getTextData(dd), getTextColor(dd), r2, str, true, false, _widgets[kDDCheckboxDefault]->_textAlignH,
@@ -1034,13 +1040,19 @@ void ThemeEngine::drawRadiobutton(const Common::Rect &r, const Common::String &s
 
 	const int checkBoxSize = MIN((int)r.height(), getFontHeight());
 
+	r2.left = RTL_MODE ? r2.right - checkBoxSize : r2.left;
 	r2.bottom = r2.top + checkBoxSize;
 	r2.right = r2.left + checkBoxSize;
 
 	drawDD(dd, r2);
 
-	r2.left = r2.right + checkBoxSize;
-	r2.right = MAX(r2.left, r.right);
+	if (RTL_MODE) {
+		r2.right = r2.left - checkBoxSize;
+		r2.left = r.left;
+	} else {
+		r2.left = r2.right + checkBoxSize;
+		r2.right = MAX(r2.left, r.right);
+	}
 
 	drawDDText(getTextData(dd), getTextColor(dd), r2, str, true, false, _widgets[kDDRadiobuttonDefault]->_textAlignH,
 	           _widgets[dd]->_textAlignV);
