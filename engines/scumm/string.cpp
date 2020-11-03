@@ -23,6 +23,7 @@
 
 
 #include "common/config-manager.h"
+#include "common/unicode-bidi.h"
 #include "audio/mixer.h"
 
 #include "scumm/actor.h"
@@ -443,6 +444,8 @@ bool ScummEngine::newLine() {
 		if (_game.id == GID_MONKEY && _charset->getCurID() == 4) {
 			_nextLeft = _screenWidth - _charset->getStringWidth(0, _charsetBuffer + _charsetBufPos) - _nextLeft;
 		}
+	} else if (_game.heversion > 0 && _language == Common::HE_ISR) {
+		_nextLeft = _screenWidth - _charset->getStringWidth(0, _charsetBuffer + _charsetBufPos) - _nextLeft;
 	}
 	if (_game.version == 0) {
 		return false;
@@ -467,6 +470,32 @@ void ScummEngine::fakeBidiString(byte *ltext, bool ignoreVerb) {
 	// Provides custom made BiDi mechanism.
 	// Reverses texts on each line marked by control characters (considering different control characters used in verbs panel)
 	// While preserving original order of numbers (also negative numbers and comma separated)
+
+#ifdef ENABLE_HE
+	if (_game.heversion > 0) {
+		if (*ltext == 0x7F) {
+			ltext++;
+			while (*(ltext++) != 0x7F);
+		}
+		byte *loc = ltext;
+		byte tmp = 0;
+		while (1) {
+			while (*loc && *loc != 13) {
+				loc++;
+			}
+			tmp = *loc;
+			*loc = 0;
+			strcpy((char *)ltext, Common::convertBiDiString((const char *)ltext, Common::kWindows1255).c_str());
+			*loc = tmp;
+			loc++;
+			ltext = loc;
+			if (!tmp) {
+				return;
+			}
+		}
+	}
+#endif
+
 	int32 ll = 0;
 	if (_game.id == GID_INDY4 && ltext[ll] == 0x7F) {
 		ll++;
@@ -704,13 +733,15 @@ void ScummEngine::CHARSET_1() {
 		if (_game.id == GID_MONKEY && _charset->getCurID() == 4) {
 			_nextLeft = _screenWidth - _charset->getStringWidth(0, _charsetBuffer + _charsetBufPos) - _nextLeft;
 		}
+	} else if (_game.heversion > 0 && _language == Common::HE_ISR) {
+		_nextLeft = _screenWidth - _charset->getStringWidth(0, _charsetBuffer + _charsetBufPos) - _nextLeft;
 	}
 
 	_charset->_disableOffsX = _charset->_firstChar = !_keepText;
 
 	int c = 0;
 
-	if (_game.version >= 4 && _game.version < 7 && _game.heversion == 0 && _language == Common::HE_ISR) {
+	if (_game.version >= 4 && _game.version < 7 && _language == Common::HE_ISR) {
 		fakeBidiString(_charsetBuffer + _charsetBufPos, true);
 	}
 
@@ -983,7 +1014,7 @@ void ScummEngine::drawString(int a, const byte *msg) {
 
 	convertMessageToString(msg, buf, sizeof(buf));
 
-	if (_game.version >= 4 && _game.version < 7 && _game.heversion == 0 && _language == Common::HE_ISR) {
+	if (_game.version >= 4 && _game.version < 7 && _language == Common::HE_ISR) {
 		fakeBidiString(buf, false);
 	}
 
