@@ -374,18 +374,28 @@ void Subtitles::draw(Graphics::Surface &s) {
 	int y = s.h - (kMarginBottom + MAX(kPreferedLine, lines.size()) * _font->getFontHeight());
 
 	for (uint i = 0; i < lines.size(); i++, y += _font->getFontHeight()) {
+		Common::U32String line("");
+
+		if (true || _subtitlesInfo.languageMode == "HE_ISR") {
+			for (Common::U32String::const_iterator c = lines[i].end() - 1, end = lines[i].begin(); c >= end; --c) {
+				line += *c;
+			}
+		} else {
+			line += lines[i];
+		}
+
 		switch (_subtitlesInfo.fontType) {
 			case Subtitles::kSubtitlesFontTypeInternal:
 				// shadow/outline is part of the font color data
-				_font->drawString(&s, lines[i], 0, y, s.w, 0, Graphics::kTextAlignCenter);
+				_font->drawString(&s, line, 0, y, s.w, 0, Graphics::kTextAlignCenter);
 				break;
 			case Subtitles::kSubtitlesFontTypeTTF:
-				_font->drawString(&s, lines[i], -1, y    , s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
-				_font->drawString(&s, lines[i],  0, y - 1, s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
-				_font->drawString(&s, lines[i],  1, y    , s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
-				_font->drawString(&s, lines[i],  0, y + 1, s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
+				_font->drawString(&s, line, -1, y    , s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
+				_font->drawString(&s, line,  0, y - 1, s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
+				_font->drawString(&s, line,  1, y    , s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
+				_font->drawString(&s, line,  0, y + 1, s.w, s.format.RGBToColor(  0,   0,   0), Graphics::kTextAlignCenter);
 
-				_font->drawString(&s, lines[i],  0, y    , s.w, s.format.RGBToColor(255, 255, 255), Graphics::kTextAlignCenter);
+				_font->drawString(&s, line,  0, y    , s.w, s.format.RGBToColor(255, 255, 255), Graphics::kTextAlignCenter);
 				break;
 		}
 	}
