@@ -283,7 +283,7 @@ void TextObject::setupText() {
 		const char *start = message.c_str();
 		// Reverse the line for the Hebrew translation
 		if (g_grim->getGameLanguage() == Common::HE_ISR) {
-			for (const char *ch = start + nextLinePos - 1; ch > start; --ch)
+			for (const char *ch = start + nextLinePos - 1; ch >= start; --ch)
 				currentLine += *ch;
 		} else {
 			currentLine = Common::String(start, start + nextLinePos);
