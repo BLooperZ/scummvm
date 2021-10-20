@@ -2415,6 +2415,18 @@ static const struct ADGameDescription SciGameDescriptions[] = {
 		AD_LISTEND},
 		Common::EN_ANY, Common::kPlatformDOS, 0, GUIO_STD16_UNDITHER	},
 
+	// Laura Bow - Hebrew fan translation
+	// SCI interpreter version 0.000.631
+	{"laurabow", "", {
+		{"resource.map", 0, "4e511f47d9893fa529d6621a93fa0030", 8478},
+		{"resource.001", 0, "e45c888d9c7c04aec0a20e9f820b79ff", 515788},
+		{"resource.002", 0, "e45c888d9c7c04aec0a20e9f820b79ff", 721381},
+		{"resource.003", 0, "e45c888d9c7c04aec0a20e9f820b79ff", 667468},
+		{"resource.004", 0, "e45c888d9c7c04aec0a20e9f820b79ff", 683807},
+		{"PATCHES/font.000", 0, "5053e202adbd7a4fdebb30b2ea76ce27", 2835},
+		AD_LISTEND},
+		Common::HE_ISR, Common::kPlatformDOS, 0, GUIO_STD16_UNDITHER	},
+
 	// Laura Bow 2 - English DOS Non-Interactive Demo (from FRG)
 	// Executable scanning reports "x.yyy.zzz"
 	// SCI interpreter version 1.001.069 (just a guess)
