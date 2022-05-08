@@ -28,6 +28,7 @@
 #include "common/debug.h"
 #include "common/debug-channels.h"
 #include "common/error.h"
+#include "common/array.h"
 #include "common/random.h"
 #include "engines/engine.h"
 #include "gui/debugger.h"
@@ -105,12 +106,16 @@ public:
 	bool isMouseButtonDown();
 
     void playVideo(const char *name);
+	void loadScript(const char *name);
     void decodePicture1(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
     void decodePicture4(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
 
 private:
 	int _mouseButton;
     Common::HashMap<ResourceId, ResourceEntry, ResourceIdHash> _resources;
+
+	Common::Array<Common::String> readArrayOfStrings(Common::File &f);
+	Common::String serializeStringArray(Common::Array<Common::String> &arr);
 };
 
 extern CruxEngine *g_ed;

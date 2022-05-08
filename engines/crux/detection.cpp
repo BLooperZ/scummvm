@@ -33,15 +33,13 @@ namespace Crux {
 
 static const ADGameDescription gameDescriptions[] = {
 
-	// Lost Eden PC non-interactive demo version
-	// Probably not worth it
 	{
 		"and",
 		0,
 		AD_ENTRY1s("ADVENT.IDX", "d673ea47ebbed39fec338363f87a12f9", 140819),
 		Common::EN_ANY,
 		Common::kPlatformWindows,
-		ADGF_UNSTABLE,
+		0, // ADGF_UNSTABLE,
 		GUIO1(GUIO_NOMIDI)
 	},
 

@@ -96,8 +96,11 @@ Common::Error CruxEngine::run() {
 	debug("Total number of resources: %d", _resources.size());
 
 	// playVideo("INTRO1");
-	playVideo("MENGINE");
+	// playVideo("MENGINE");
+	loadScript("MENU");
+	// loadScript("ENTRY");
 
+/*
 	// Simple main event loop
 	Common::Event evt;
 	while (!shouldQuit()) {
@@ -105,8 +108,91 @@ Common::Error CruxEngine::run() {
 		g_system->getEventManager()->pollEvent(evt);
 		g_system->delayMillis(1000 / 15);
 	}
+*/
 
 	return Common::kNoError;
+}
+
+void CruxEngine::loadScript(const char *name) {
+	debug("Loading script %s", name);
+
+	ResourceId id(4, Common::String(name));
+	ResourceEntry entry = _resources.getVal(id);
+	debug("Found script at %d %d", entry.offset, entry.length);
+
+	Common::File f;
+	f.open("ADVENT.RES");
+	f.seek(entry.offset);
+
+	uint script_type = f.readUint32LE();
+	debug("Script type %d", script_type);
+
+                        // $this->constants = $this->readConsts(fopen("22.MENU", "rb"));
+	Common::Array<Common::String> strings = readArrayOfStrings(f);
+	Common::Array<Common::String> palettes = readArrayOfStrings(f);
+	Common::Array<Common::String> exits = readArrayOfStrings(f);
+	Common::Array<Common::String> animations = readArrayOfStrings(f);
+	Common::Array<Common::String> smc = readArrayOfStrings(f);
+	Common::Array<Common::String> themes = readArrayOfStrings(f);
+	Common::Array<Common::String> sounds = readArrayOfStrings(f);
+
+	debug("Loaded script:");
+	debug("  Strings: %s", serializeStringArray(strings).c_str());
+	debug("  Palettes: %s", serializeStringArray(palettes).c_str());
+	debug("  Exits: %s", serializeStringArray(exits).c_str());
+	debug("  Animations: %s", serializeStringArray(animations).c_str());
+	debug("  SMC: %s", serializeStringArray(smc).c_str());
+	debug("  Themes: %s", serializeStringArray(themes).c_str());
+	debug("  Sounds: %s", serializeStringArray(sounds).c_str());
+	
+	// readCursors();
+	uint32 number_of_cursors = f.readUint32LE();
+	f.skip(number_of_cursors * 176);
+	
+	// readAreas();
+	uint32 number_of_areas = f.readUint32LE();
+	f.skip(number_of_areas * 20);
+
+	// unknown
+	f.skip(0xf * 4);
+
+	uint32 number_of_scripts = f.readUint32LE();
+	debug("Number of scripts: %d", number_of_scripts);
+
+	for (int i=0; i<number_of_scripts; i++) {
+		uint32 number_of_commands = (script_type == 1 ? f.readByte() : f.readUint32LE());
+		debug("Commands in script %d: %d", i, number_of_commands);
+		f.skip(16*number_of_commands);
+	}
+}
+
+Common::String CruxEngine::serializeStringArray(Common::Array<Common::String> &arr) {
+	Common::String result;
+
+	result += "[";
+	for (int i=0; i<arr.size(); i++) {
+		if (i > 0)
+			result += ", ";
+
+		result += "\"";
+		result += arr[i];
+		result += "\"";
+	}
+
+	result += "]";
+	return result;
+}
+
+Common::Array<Common::String> CruxEngine::readArrayOfStrings(Common::File &f) {
+	uint32 count = f.readUint32LE();
+	Common::Array<Common::String> result;
+
+	for (uint i=0; i<count; i++) {
+		Common::String s = f.readPascalString(false);
+		result.push_back(s);
+	}
+
+	return result;
 }
 
 void CruxEngine::playVideo(const char *name) {
@@ -180,7 +266,7 @@ void CruxEngine::playVideo(const char *name) {
 				}
 			}
 
-			debug("XXX %x", f.pos() - entry.offset);
+			debug("XXX %x", (uint32)f.pos() - entry.offset);
 			delete[] buffer;
 		}
 
