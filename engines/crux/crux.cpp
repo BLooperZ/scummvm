@@ -95,9 +95,10 @@ Common::Error CruxEngine::run() {
 
 	debug("Total number of resources: %d", _resources.size());
 
-        // playVideo("INTRO2");
+        // playVideo("VVKSPACE");
+        playVideo("INTRO3");
         // playVideo("GNTLOGO");
-        playVideo("STICK");
+        // playVideo("STICK");
 	// playVideo("MENGINE");
 	// loadScript("MENU");
 	// loadScript("ENTRY");
@@ -276,14 +277,14 @@ void CruxEngine::playVideo(const char *name) {
 byte *put_single_col(byte *buffer, byte *tto, int block_width, int image_width) {
         // int a = 0;
         byte *b = tto;
-        int direction = 1;
+        long direction = 1;
         byte *d = tto + block_width;
 
-        int e = *buffer++;
+        byte color = *buffer++;
         while (*buffer != 0xff) {
                 if (*buffer <= 0xee) {
-                        int f = abs(d - b);
-                        int g = *buffer;
+                        long f = abs(d - b);
+                        long g = *buffer;
                         while (f <= g) {
                                 g = g - f;
                                 b = d + image_width - direction;
@@ -295,11 +296,11 @@ byte *put_single_col(byte *buffer, byte *tto, int block_width, int image_width) 
                         b = b + g * direction;
                 } else {
                         // *buffer > 0xee
-                        int h = *buffer - 0xee;
-                        int i = abs(d - b);
+                        long h = *buffer - 0xee;
+                        long i = abs(d - b);
                         while (i <= h) {
                                 while (b != d) {
-                                        *b = e;
+                                        *b = color;
                                         b += direction;
                                 }
 
@@ -312,7 +313,7 @@ byte *put_single_col(byte *buffer, byte *tto, int block_width, int image_width) 
 
                         byte *pbVar1 = b + h * direction;
                         while (b != pbVar1) {
-                                *b = e;
+                                *b = color;
                                 b += direction;
                         }
                 }
@@ -353,7 +354,6 @@ void CruxEngine::decodePicture(byte *buffer, uint32 length, Graphics::Surface su
 
 void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface surface) {
 
-	debug("What's this: %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8]);
 	uint image_width = (buffer[1]) | (buffer[2] << 8);
 	uint image_height = (buffer[3]) | (buffer[4] << 8);
 	uint block_width = (buffer[5]) | (buffer[6] << 8);
@@ -366,7 +366,10 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 
 	for (int y=0; y<image_height; y += block_height) {
 		for (int x=0; x<image_width; x += block_width) {
+                        debug("%d,%d", y, x);
 			uint8 type = *buffer++;
+                        if (type > 0)
+                        debug("Block with type=%x", type);
 
                         byte *to = (byte *)surface.getBasePtr(x, y);
                         byte *tto = to;
@@ -378,22 +381,31 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 
                                 case 1:
                                 // put_block_copy();
-                                debug("Block with type=%x", type);
-                                return;
+                                for (int a=0; a<32; a++) {
+                                        for (int b=0; b<32; b++) {
+                                                to = (byte *)surface.getBasePtr(x+b, y+a);
+                                                *to = 0x7f;
+                                        }
+                                }
+                                // return;
                                 break;
 
                                 case 2:
                                 // put_block_brun16();
-                                debug("Block with type=%x", type);
-                                return;
+                                for (int a=0; a<32; a++) {
+                                        for (int b=0; b<32; b++) {
+                                                to = (byte *)surface.getBasePtr(x+b, y+a);
+                                                *to = 0xff;
+                                        }
+                                }
+                                // return;
                                 break;
 
                                 case 3:
-                                return;
-                                debug("Block with type=%x", type);
+                                // return;
                                 // put_block_skip64();
                                 {
-                                        int direction = 1;
+                                        long direction = 1;
                                         int b = *buffer++;
                                         if (b != 0xff) {
                                                 int local_50 = MIN(0x40, b);
@@ -405,32 +417,31 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
                                         b = DAT_00647848;
                                         byte *local_34 = to + block_width;
                                         while (*buffer != 0) {
-                                                debug("buffer %02x", *buffer);
+                                                debug("local %p to %p", local_34, to);
                                                 if ((*buffer & 0xc0) == 0) {
-                                                        int local_2c = abs(local_34 - to);
-                                                        debug("local_2c %x", local_2c);
-                                                        int local_28 = *buffer;
-                                                        debug("local_28 %x", local_28);
+                                                        long local_2c = abs(local_34 - to);
+                                                        long local_28 = *buffer;
                                                         while (local_2c <= local_28) {
                                                                 local_28 = local_28 - local_2c;
                                                                 to = local_34 + image_width - direction;
-                                                                local_34 = local_34 + image_width - (block_width + 1) * direction;
+                                                                local_34 = local_34 + image_width - ((block_width + 1) * direction);
                                                                 direction = -direction;
                                                                 local_2c = block_width;
                                                         }
 
                                                         to = to + local_28 * direction;
                                                 } else {
-                                                        int cVar1 = copy_of_buffer[*buffer & 0x3f];
-                                                        int local_24 = (*buffer & 0xc0) >> 6; // must be [1,2,3]
-                                                        int local_44 = abs(local_34 - to);
+                                                        long cVar1 = copy_of_buffer[*buffer & 0x3f];
+                                                        long local_24 = (*buffer & 0xc0) >> 6; // must be [1,2,3]
+                                                        long local_44 = abs(local_34 - to);
                                                         while (local_44 <= local_24) {
                                                                 while (to != local_34) {
                                                                         *to = cVar1;
                                                                         to += direction;
                                                                 }
 
-                                                                local_34 = local_34 + image_width - (block_width + 1) * direction;
+                                                                local_34 = local_34 + image_width - ((block_width + 1) * direction);
+
                                                                 to = to + image_width - direction;
                                                                 direction = -direction;
                                                                 local_24 = local_24 - local_44;
@@ -458,18 +469,7 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
    				case 4:
                                 {
                                         // dput_block_skip16();
-                                        // debug("What's this for type 4:");
-                                        // debug("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13], buffer[14], buffer[15]);
-                                        // buffer += 16;
-                                        // debug("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13], buffer[14], buffer[15]);
-                                        // buffer += 16;
-                                        // debug("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13], buffer[14], buffer[15]);
-                                        // buffer += 16;
-                                        // debug("---");
-                                        //
-                                        // buffer -= 3*16;
-
-                                        int direction = 1;
+                                        long direction = 1;
                                         int uVar2 = *buffer++;
                                         if (uVar2 != 0xff) {
                                                 int uVar3 = MIN(uVar2, 0x10);
@@ -479,7 +479,7 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
                                         }
 
                                         uVar2 = DAT_00647848;
-                                        uint8 *c = to + block_width;
+                                        byte *c = to + block_width;
                                         while (*buffer != 0) {
                                                 if ((*buffer & 0xf0) == 0) {
                                                         int a = abs(c - to);
@@ -494,8 +494,8 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 
                                                         to = to + b * direction;
                                                 } else {
-                                                        int high_nibble = copy_of_buffer[*buffer & 0x0f];
-                                                        int low_nibble = (*buffer & 0xf0) >> 4;
+                                                        long high_nibble = copy_of_buffer[*buffer & 0x0f];
+                                                        long low_nibble = (*buffer & 0xf0) >> 4;
                                                         int f = abs(c - to);
                                                         if (f <= low_nibble) {
                                                                 while (to != c) {
@@ -509,7 +509,7 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
                                                                 low_nibble = low_nibble - f;
                                                         }
 
-                                                        uint8 *h = to + low_nibble * direction;
+                                                        byte *h = to + low_nibble * direction;
                                                         while (to != h) {
                                                                 *to = high_nibble;
                                                                 to += direction;
@@ -529,8 +529,68 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
                                 }
                                 break;
 
-                                case 11:
-                                return;
+                                case 8:
+                                // dput_block_skip8();
+                                {
+                                        long direction = 1;
+                                        int uVar2 = *buffer++;
+                                        if (uVar2 != 0xff) {
+                                                int uVar3 = MIN(uVar2, 0x8);
+                                                copy_of_buffer = buffer;
+                                                DAT_00647848 = uVar2;
+                                                buffer += uVar3;
+                                        }
+
+                                        uVar2 = DAT_00647848;
+                                        byte *c = to + block_width;
+                                        while (*buffer != 0) {
+                                                if ((*buffer & 0xf8) == 0) {
+                                                        int a = abs(c - to);
+                                                        int b = *buffer;
+                                                        while (a <= b) {
+                                                                b = b - a;
+                                                                to = c + image_width - direction;
+                                                                c = c + (image_width - (block_width + 1) * direction);
+                                                                direction = -direction;
+                                                                a = block_width;
+                                                        }
+
+                                                        to = to + b * direction;
+                                                } else {
+                                                        long high_nibble = copy_of_buffer[*buffer & 0x07];
+                                                        long low_nibble = (*buffer & 0xf8) >> 3;
+                                                        int f = abs(c - to);
+                                                        if (f <= low_nibble) {
+                                                                while (to != c) {
+                                                                        *to = high_nibble;
+                                                                        to += direction;
+                                                                }
+
+                                                                c = c + (image_width - (block_width + 1) * direction);
+                                                                to = to + image_width - direction;
+                                                                direction = -direction;
+                                                                low_nibble = low_nibble - f;
+                                                        }
+
+                                                        byte *h = to + low_nibble * direction;
+                                                        while (to != h) {
+                                                                *to = high_nibble;
+                                                                to += direction;
+                                                        }
+                                                }
+
+                                                buffer++;
+                                        }
+
+                                        // skip 0
+                                        buffer++;
+
+                                        for (int i = 8; i < uVar2; i++) {
+                                                // bank = (byte *)put_single_col(bank,tto,block_width,pitch);
+                                                buffer = put_single_col(buffer, tto, block_width, image_width);
+                                        }
+                                }
+                                break;
 
                                 default:
                                 debug("Don't know how to handle type 0x%02x", type);
