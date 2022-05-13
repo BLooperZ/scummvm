@@ -105,17 +105,20 @@ public:
 	void setMousePosition(int16 x, int16 y);
 	bool isMouseButtonDown();
 
-    void playVideo(const char *name);
+        void playVideo(const char *name);
 	void loadScript(const char *name);
-    void decodePicture1(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
-    void decodePicture4(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
+        void decodePalette(byte *buffer, uint32 length);
+        void decodePicture(byte *buffer, uint32 length, Graphics::Surface surface);
 
 private:
 	int _mouseButton;
-    Common::HashMap<ResourceId, ResourceEntry, ResourceIdHash> _resources;
+        Common::HashMap<ResourceId, ResourceEntry, ResourceIdHash> _resources;
 
 	Common::Array<Common::String> readArrayOfStrings(Common::File &f);
 	Common::String serializeStringArray(Common::Array<Common::String> &arr);
+
+        void decodePicture1(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
+        void decodePicture4(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
 };
 
 extern CruxEngine *g_ed;
