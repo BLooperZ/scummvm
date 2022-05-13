@@ -95,9 +95,11 @@ Common::Error CruxEngine::run() {
 
 	debug("Total number of resources: %d", _resources.size());
 
-	// playVideo("INTRO1");
+        // playVideo("INTRO2");
+        // playVideo("GNTLOGO");
+        playVideo("STICK");
 	// playVideo("MENGINE");
-	loadScript("MENU");
+	// loadScript("MENU");
 	// loadScript("ENTRY");
 
 /*
@@ -128,13 +130,13 @@ void CruxEngine::loadScript(const char *name) {
 	debug("Script type %d", script_type);
 
                         // $this->constants = $this->readConsts(fopen("22.MENU", "rb"));
-	Common::Array<Common::String> strings = readArrayOfStrings(f);
-	Common::Array<Common::String> palettes = readArrayOfStrings(f);
-	Common::Array<Common::String> exits = readArrayOfStrings(f);
-	Common::Array<Common::String> animations = readArrayOfStrings(f);
-	Common::Array<Common::String> smc = readArrayOfStrings(f);
-	Common::Array<Common::String> themes = readArrayOfStrings(f);
-	Common::Array<Common::String> sounds = readArrayOfStrings(f);
+	auto strings = readArrayOfStrings(f);
+	auto palettes = readArrayOfStrings(f);
+	auto exits = readArrayOfStrings(f);
+	auto animations = readArrayOfStrings(f);
+	auto smc = readArrayOfStrings(f);
+	auto themes = readArrayOfStrings(f);
+	auto sounds = readArrayOfStrings(f);
 
 	debug("Loaded script:");
 	debug("  Strings: %s", serializeStringArray(strings).c_str());
@@ -144,13 +146,13 @@ void CruxEngine::loadScript(const char *name) {
 	debug("  SMC: %s", serializeStringArray(smc).c_str());
 	debug("  Themes: %s", serializeStringArray(themes).c_str());
 	debug("  Sounds: %s", serializeStringArray(sounds).c_str());
-	
+
 	// readCursors();
-	uint32 number_of_cursors = f.readUint32LE();
+	auto number_of_cursors = f.readUint32LE();
 	f.skip(number_of_cursors * 176);
-	
+
 	// readAreas();
-	uint32 number_of_areas = f.readUint32LE();
+	auto number_of_areas = f.readUint32LE();
 	f.skip(number_of_areas * 20);
 
 	// unknown
@@ -184,10 +186,10 @@ Common::String CruxEngine::serializeStringArray(Common::Array<Common::String> &a
 }
 
 Common::Array<Common::String> CruxEngine::readArrayOfStrings(Common::File &f) {
-	uint32 count = f.readUint32LE();
+	auto count = f.readUint32LE();
 	Common::Array<Common::String> result;
 
-	for (uint i=0; i<count; i++) {
+	for (auto i=0; i<count; i++) {
 		Common::String s = f.readPascalString(false);
 		result.push_back(s);
 	}
@@ -206,25 +208,24 @@ void CruxEngine::playVideo(const char *name) {
 	f.open("ADVENT.RES");
 	f.seek(entry.offset);
 
-	f.skip(0x10);
-	/*
-	// ignore header
-	f.readByte();     // 0x10
-	f.readUint16LE(); // 0x0001 for stills, 0x0100 for video
-	uint16 width = f.readUint16LE();
-	uint16 height = f.readUint16LE();
-	byte depth = f.readByte();
-	f.readUint32LE(); // 0x00000001
-	f.readUint32LE(); // 0x00000000
-	*/
+        int a0 = f.readUint16LE();
+        uint16 a1 = f.readUint16LE();
+        uint16 frame_count = f.readUint16LE();
+        uint16 a3 = f.readUint16LE();
+        debug("header: %04x %04x %04x %04x", a0, a1, frame_count, a3);
+
+        f.skip(8);
 
 	Graphics::Surface framebuffer;
 	framebuffer.create(640, 480, Graphics::PixelFormat::createFormatCLUT8());
 
-	while (true) {
+        int frame_index = 0;
+
+	while (frame_index < frame_count) {
 
 		uint16 count = f.readUint16LE();
 		while (count-- > 0) {
+                        debug("Chunks left %d", count);
 
 			uint32 chunk_size = f.readUint32LE();
 			uint16 chunk_type = f.readUint16LE();
@@ -234,7 +235,7 @@ void CruxEngine::playVideo(const char *name) {
 			if (chunk_size == 0)
 				continue;
 
-			if (chunk_size > 1000000) {
+			if (chunk_size > 10000000) {
 				debug("OUCH chunk size too big");
 				return;
 			}
@@ -247,26 +248,13 @@ void CruxEngine::playVideo(const char *name) {
 			}
 
 			if (chunk_type == 0x0002) {
-				// palette
-				byte palette[768];
-
-				for (int i = 0; i < 768; i++) {
-					palette[i] = buffer[i + 2] << 2;
-				}
-
-				g_system->getPaletteManager()->setPalette(palette, 0, 256);
+                                decodePalette(buffer, chunk_size);
 			}
 
 			if (chunk_type == 0x0010) {
-				uint8 type = buffer[0];
-				if (type == 4) {
-					decodePicture4(buffer, chunk_size, framebuffer);
-				} else {
-					decodePicture1(buffer, chunk_size, framebuffer);
-				}
+                                decodePicture(buffer, chunk_size, framebuffer);
 			}
 
-			debug("XXX %x", (uint32)f.pos() - entry.offset);
 			delete[] buffer;
 		}
 
@@ -277,31 +265,277 @@ void CruxEngine::playVideo(const char *name) {
 		Common::Event evt;
 		g_system->getEventManager()->pollEvent(evt);
 
-		if (shouldQuit()) 
+		if (shouldQuit()) {
 			break;
+                }
+
+                frame_index++;
 	}
+}
+
+byte *put_single_col(byte *buffer, byte *tto, int block_width, int image_width) {
+        // int a = 0;
+        byte *b = tto;
+        int direction = 1;
+        byte *d = tto + block_width;
+
+        int e = *buffer++;
+        while (*buffer != 0xff) {
+                if (*buffer <= 0xee) {
+                        int f = abs(d - b);
+                        int g = *buffer;
+                        while (f <= g) {
+                                g = g - f;
+                                b = d + image_width - direction;
+                                d = d + image_width - direction * (block_width + 1);
+                                direction = -direction;
+                                f = block_width;
+                        }
+
+                        b = b + g * direction;
+                } else {
+                        // *buffer > 0xee
+                        int h = *buffer - 0xee;
+                        int i = abs(d - b);
+                        while (i <= h) {
+                                while (b != d) {
+                                        *b = e;
+                                        b += direction;
+                                }
+
+                                d = d + image_width - direction * (block_width + 1);
+                                b = b + image_width - direction;
+                                direction = -direction;
+                                h = h - i;
+                                i = block_width;
+                        }
+
+                        byte *pbVar1 = b + h * direction;
+                        while (b != pbVar1) {
+                                *b = e;
+                                b += direction;
+                        }
+                }
+
+                buffer++;
+        }
+
+        // skip 0xff
+        buffer++;
+        return buffer;
+}
+
+static int DAT_00647848 = 0;
+
+void CruxEngine::decodePalette(byte *buffer, uint32 length) {
+        byte palette[768];
+
+        int start = buffer[0];
+        int end = buffer[1];
+        auto total = (end - start + 1) * 3;
+        byte *out = palette;
+        byte *in = buffer + 2;
+        for (auto i = 0; i < total; i++) {
+                *out++ = *in++ << 2;
+        }
+
+        g_system->getPaletteManager()->setPalette(palette, start, end - start + 1);
+}
+
+void CruxEngine::decodePicture(byte *buffer, uint32 length, Graphics::Surface surface) {
+        uint8 type = buffer[0];
+        if (type == 0x04) {
+                decodePicture4(buffer, length, surface);
+        } else {
+                decodePicture1(buffer, length, surface);
+        }
 }
 
 void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface surface) {
 
-	debug("What's this: %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8]);
+	debug("What's this: %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8]);
 	uint image_width = (buffer[1]) | (buffer[2] << 8);
 	uint image_height = (buffer[3]) | (buffer[4] << 8);
 	uint block_width = (buffer[5]) | (buffer[6] << 8);
 	uint block_height = (buffer[7]) | (buffer[8] << 8);
+        // uint blocks_wide = image_width / block_width;
+        // uint blocks_high = image_height / block_height;
 
 	buffer += 9;
+        uint8 *copy_of_buffer = NULL;
 
 	for (int y=0; y<image_height; y += block_height) {
 		for (int x=0; x<image_width; x += block_width) {
 			uint8 type = *buffer++;
 
-			switch (type) {
-				case 4:
-				debug("What's this: %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8]);
-				break;
+                        byte *to = (byte *)surface.getBasePtr(x, y);
+                        byte *tto = to;
+
+   			switch (type) {
+                                case 0:
+                                // nop, just ignore this byte
+                                break;
+
+                                case 1:
+                                // put_block_copy();
+                                debug("Block with type=%x", type);
+                                return;
+                                break;
+
+                                case 2:
+                                // put_block_brun16();
+                                debug("Block with type=%x", type);
+                                return;
+                                break;
+
+                                case 3:
+                                return;
+                                debug("Block with type=%x", type);
+                                // put_block_skip64();
+                                {
+                                        int direction = 1;
+                                        int b = *buffer++;
+                                        if (b != 0xff) {
+                                                int local_50 = MIN(0x40, b);
+                                                copy_of_buffer = buffer;
+                                                DAT_00647848 = b;
+                                                buffer += local_50;
+                                        }
+
+                                        b = DAT_00647848;
+                                        byte *local_34 = to + block_width;
+                                        while (*buffer != 0) {
+                                                debug("buffer %02x", *buffer);
+                                                if ((*buffer & 0xc0) == 0) {
+                                                        int local_2c = abs(local_34 - to);
+                                                        debug("local_2c %x", local_2c);
+                                                        int local_28 = *buffer;
+                                                        debug("local_28 %x", local_28);
+                                                        while (local_2c <= local_28) {
+                                                                local_28 = local_28 - local_2c;
+                                                                to = local_34 + image_width - direction;
+                                                                local_34 = local_34 + image_width - (block_width + 1) * direction;
+                                                                direction = -direction;
+                                                                local_2c = block_width;
+                                                        }
+
+                                                        to = to + local_28 * direction;
+                                                } else {
+                                                        int cVar1 = copy_of_buffer[*buffer & 0x3f];
+                                                        int local_24 = (*buffer & 0xc0) >> 6; // must be [1,2,3]
+                                                        int local_44 = abs(local_34 - to);
+                                                        while (local_44 <= local_24) {
+                                                                while (to != local_34) {
+                                                                        *to = cVar1;
+                                                                        to += direction;
+                                                                }
+
+                                                                local_34 = local_34 + image_width - (block_width + 1) * direction;
+                                                                to = to + image_width - direction;
+                                                                direction = -direction;
+                                                                local_24 = local_24 - local_44;
+                                                                local_44 = abs(local_34 - to);
+                                                        }
+
+                                                        byte *pcVar2 = to + local_24 * direction;
+                                                        while (to != pcVar2) {
+                                                                *to = cVar1;
+                                                                to += direction;
+                                                        }
+                                                }
+
+                                                buffer++;
+                                        }
+
+                                        // skip 0
+                                        buffer++;
+                                        for (int i=0x40; i<b; i++) {
+                                                buffer = put_single_col(buffer, tto, block_width, image_width);
+                                        }
+                                }
+                                break;
+
+   				case 4:
+                                {
+                                        // dput_block_skip16();
+                                        // debug("What's this for type 4:");
+                                        // debug("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13], buffer[14], buffer[15]);
+                                        // buffer += 16;
+                                        // debug("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13], buffer[14], buffer[15]);
+                                        // buffer += 16;
+                                        // debug("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13], buffer[14], buffer[15]);
+                                        // buffer += 16;
+                                        // debug("---");
+                                        //
+                                        // buffer -= 3*16;
+
+                                        int direction = 1;
+                                        int uVar2 = *buffer++;
+                                        if (uVar2 != 0xff) {
+                                                int uVar3 = MIN(uVar2, 0x10);
+                                                copy_of_buffer = buffer;
+                                                DAT_00647848 = uVar2;
+                                                buffer += uVar3;
+                                        }
+
+                                        uVar2 = DAT_00647848;
+                                        uint8 *c = to + block_width;
+                                        while (*buffer != 0) {
+                                                if ((*buffer & 0xf0) == 0) {
+                                                        int a = abs(c - to);
+                                                        int b = *buffer;
+                                                        while (a <= b) {
+                                                                b = b - a;
+                                                                to = c + image_width - direction;
+                                                                c = c + (image_width - (block_width + 1) * direction);
+                                                                direction = -direction;
+                                                                a = block_width;
+                                                        }
+
+                                                        to = to + b * direction;
+                                                } else {
+                                                        int high_nibble = copy_of_buffer[*buffer & 0x0f];
+                                                        int low_nibble = (*buffer & 0xf0) >> 4;
+                                                        int f = abs(c - to);
+                                                        if (f <= low_nibble) {
+                                                                while (to != c) {
+                                                                        *to = high_nibble;
+                                                                        to += direction;
+                                                                }
+
+                                                                c = c + (image_width - (block_width + 1) * direction);
+                                                                to = to + image_width - direction;
+                                                                direction = -direction;
+                                                                low_nibble = low_nibble - f;
+                                                        }
+
+                                                        uint8 *h = to + low_nibble * direction;
+                                                        while (to != h) {
+                                                                *to = high_nibble;
+                                                                to += direction;
+                                                        }
+                                                }
+
+                                                buffer++;
+                                        }
+
+                                        // skip 0
+                                        buffer++;
+
+                                        for (int i = 0x10; i < uVar2; i++) {
+                                                // bank = (byte *)put_single_col(bank,tto,block_width,pitch);
+                                                buffer = put_single_col(buffer, tto, block_width, image_width);
+                                        }
+                                }
+                                break;
+
+                                case 11:
+                                return;
+
+                                default:
+                                debug("Don't know how to handle type 0x%02x", type);
+                                return;
 			}
-			debug("Don't know %d", type);
 
 			// char *gg = 0; *gg = 1;
 			// return;
@@ -311,7 +545,7 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 
 void CruxEngine::decodePicture1(byte *buffer, uint32 length, Graphics::Surface surface) {
 
-	debug("What's this: %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8]);
+	debug("What's this: %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8]);
 	byte image_type = buffer[0];
 	uint image_width = (buffer[1]) | (buffer[2] << 8);
 	uint image_height = (buffer[3]) | (buffer[4] << 8);
@@ -398,10 +632,10 @@ void CruxEngine::decodePicture1(byte *buffer, uint32 length, Graphics::Surface s
 
 					dst += skip;
 				}
-			} 
+			}
 			break;
 
-			case 0x04: 
+			case 0x04:
 			// dummy
 			break;
 
