@@ -96,9 +96,9 @@ Common::Error CruxEngine::run() {
 	debug("Total number of resources: %d", _resources.size());
 
         // playVideo("VVKSPACE");
-        // playVideo("INTRO3");
+        playVideo("INTRO3");
         // playVideo("GNTLOGO");
-        playVideo("STICK");
+        // playVideo("STICK");
 	// playVideo("MENGINE");
 	// loadScript("MENU");
 	// loadScript("ENTRY");
@@ -364,20 +364,20 @@ byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block_width)
                 DAT_00647848 = b;
         }
 
-        long local_34 = 1;
+        long direction = 1;
         long local_3c = 0;
         long local_24 = 0; // color
         byte *local_2c = to + block_width;
         while (true) {
-                int local_20 = (*buffer >> (local_3c ^ 1) << 2) & 0x0f;
-                int local_28 = (buffer[local_3c] >> (local_3c << 2)) & 0x0f;
-                buffer += local_3c + (local_3c ^ 1); // is this always == 1?
+                int local_20 = (*buffer >> (1 - local_3c) * 4) & 0x0f;
+                int local_28 = (buffer[local_3c] >> (local_3c * 4)) & 0x0f;
+                buffer++;
                 if (local_20 == 0 && local_28 == 0) {
                         break;
                 }
 
                 if (local_28 != 0) {
-                        local_24 = copy_of_buffer[(*buffer >> ((local_3c ^ 1) << 2)) & 0x0f];
+                        local_24 = copy_of_buffer[(*buffer >> ((1 - local_3c) * 4)) & 0x0f];
                         buffer += local_3c;
                         local_3c ^= 1;
                 }
@@ -385,48 +385,46 @@ byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block_width)
                 long iVar1 = abs(local_2c - to);
                 if (local_20 != 0 && iVar1 <= local_20) {
                         while (to != local_2c) {
-                                *to = copy_of_buffer[(*buffer >> ((local_3c ^ 1) << 2)) & 0xf];
+                                *to = copy_of_buffer[(*buffer >> ((1 - local_3c) * 4)) & 0xf];
                                 buffer += local_3c;
                                 local_3c ^= 1;
-                                to += local_34;
+                                to += direction;
                         }
 
-                        local_2c += image_width - (block_width + 1) * local_34;
-                        to += image_width - local_34;
-                        local_34 = -local_34;
+                        local_2c += image_width - (block_width + 1) * direction;
+                        to += image_width - direction;
+                        direction = -direction;
                         local_20 -= iVar1;
                 }
 
-                byte *puVar2 = to + local_20 * local_34;
+                byte *puVar2 = to + local_20 * direction;
                 while (to != puVar2) {
-                        *to = copy_of_buffer[(*buffer >> ((local_3c ^ 1) << 2)) & 0xf];
+                        *to = copy_of_buffer[(*buffer >> ((1 - local_3c) * 4)) & 0xf];
                         buffer += local_3c;
                         local_3c ^= 1;
-                        to += local_34;
+                        to += direction;
                 }
-
-                break;
 
                 if (local_28 != 0) {
                         iVar1 = abs(local_2c - to);
                         if (local_28 < iVar1) {
                                 while (local_28-- > 0) {
                                         *to = local_24;
-                                        to += local_34;
+                                        to += direction;
                                 }
                         } else {
                                 while (to != local_2c) {
                                         *to = local_24;
-                                        to += local_34;
+                                        to += direction;
                                 }
 
-                                local_2c += image_width - (block_width + 1) * local_34;
-                                to += image_width - local_34;
-                                local_34 = -local_34;
+                                local_2c += image_width - (block_width + 1) * direction;
+                                to += image_width - direction;
+                                direction = -direction;
                                 local_28 -= iVar1;
                                 while (local_28-- > 0) {
                                         *to = local_24;
-                                        to += local_34;
+                                        to += direction;
                                 }
                         }
 
@@ -690,6 +688,7 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 
                                 default:
                                 debug("Don't know how to handle type 0x%02x", type);
+                                assert(0);
                                 return;
 			}
 
