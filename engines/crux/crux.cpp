@@ -95,7 +95,7 @@ Common::Error CruxEngine::run() {
 
 	debug("Total number of resources: %d", _resources.size());
 
-        // playVideo("VVKSPACE");
+        playVideo("VVKSPACE");
         playVideo("INTRO3");
         // playVideo("GNTLOGO");
         // playVideo("STICK");
@@ -236,11 +236,7 @@ void CruxEngine::playVideo(const char *name) {
 			if (chunk_size == 0)
 				continue;
 
-			if (chunk_size > 10000000) {
-				debug("OUCH chunk size too big");
-				return;
-			}
-
+			assert(chunk_size < 10000000);
 			byte *buffer = new byte[chunk_size];
 			f.read(buffer, chunk_size);
 
@@ -331,8 +327,8 @@ static int DAT_00647848 = 0;
 void CruxEngine::decodePalette(byte *buffer, uint32 length) {
         byte palette[768];
 
-        int start = buffer[0];
-        int end = buffer[1];
+        auto start = buffer[0];
+        auto end = buffer[1];
         auto total = (end - start + 1) * 3;
         byte *out = palette;
         byte *in = buffer + 2;
@@ -344,7 +340,7 @@ void CruxEngine::decodePalette(byte *buffer, uint32 length) {
 }
 
 void CruxEngine::decodePicture(byte *buffer, uint32 length, Graphics::Surface surface) {
-        uint8 type = buffer[0];
+        auto type = buffer[0];
         if (type == 0x04) {
                 decodePicture4(buffer, length, surface);
         } else {
@@ -354,7 +350,7 @@ void CruxEngine::decodePicture(byte *buffer, uint32 length, Graphics::Surface su
 
 byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block_width) {
 
-        byte *copy_of_buffer = buffer;
+        byte *copy_of_buffer = buffer + 1;
 
         int b = *buffer++;
         if (b != 0xff) {
@@ -496,6 +492,7 @@ byte *put_block_skip64(byte *buffer, byte *to, int image_width, int block_width)
 
         // skip 0
         buffer++;
+
         for (int i=0x40; i<b; i++) {
                 buffer = put_single_col(buffer, tto, block_width, image_width);
         }
@@ -561,7 +558,6 @@ byte *dput_block_skip16(byte *buffer, byte *to, int image_width, int block_width
         buffer++;
 
         for (int i = 0x10; i < uVar2; i++) {
-                // bank = (byte *)put_single_col(bank,tto,block_width,pitch);
                 buffer = put_single_col(buffer, tto, block_width, image_width);
         }
 
@@ -633,6 +629,31 @@ byte *dput_block_skip8(byte *buffer, byte *to, int image_width, int block_width)
         return buffer;
 }
 
+byte *put_block_copy(byte *buffer, byte *to, int image_width, int block_width, int block_height) {
+
+        auto blocky = block_height;
+
+        while (blocky > 0) {
+
+                byte *puVar2 = to + block_width;
+                while (to < puVar2) {
+                        *to++ = *buffer++;
+                }
+
+                to += image_width - 1;
+                puVar2 = to - block_width;
+                while (puVar2 < to) {
+                        *to-- = *buffer++;
+                }
+
+                to += image_width + 1;
+
+                blocky -= 2;
+        }
+
+        return buffer;
+}
+
 void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface surface) {
 
 	uint image_width = (buffer[1]) | (buffer[2] << 8);
@@ -660,14 +681,7 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
                                 break;
 
                                 case 1:
-                                // put_block_copy();
-                                for (int a=0; a<32; a++) {
-                                        for (int b=0; b<32; b++) {
-                                                to = (byte *)surface.getBasePtr(x+b, y+a);
-                                                *to = 0xff;
-                                        }
-                                }
-                                // return;
+                                buffer = put_block_copy(buffer, to, image_width, block_width, block_height);
                                 break;
 
                                 case 2:
