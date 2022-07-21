@@ -718,8 +718,11 @@ void Sound::switchVoiceFile(const GameSpecificSettings *gss, uint disc) {
 
 	char filename[16];
 
-	sprintf(filename, "%s%u", gss->speech_filename, disc);
-	_voice = makeSound(_mixer, filename);
+	_voice = makeSound(_mixer, gss->speech_filename);
+	if (_voice == nullptr) {
+		sprintf(filename, "%s%u", gss->speech_filename, disc);
+		_voice = makeSound(_mixer, filename);
+	}
 	_hasVoiceFile = (_voice != nullptr);
 
 	if (!_hasVoiceFile)
