@@ -94,7 +94,7 @@ protected:
 
 	void setFontStyle(ThemeEngine::FontStyle font) { _font = font; }
 
-	virtual bool tryInsertChar(byte c, int pos);
+	virtual bool tryInsertChar(Common::u32char_type_t c, int pos);
 };
 
 } // End of namespace GUI
