@@ -176,17 +176,16 @@ void Application::create() {
 
 	if (g_engine->gameType() != TetraedgeEngine::kAmerzone) {
 		const Common::Path helpMenuPath("menus/help/help_");
-		Common::Path helpMenuFilePath;
-		i = 0;
-		while (i < ARRAYSIZE(allLangs)) {
-			helpMenuFilePath = helpMenuPath.append(core->language() + ".xml");
-			if (Common::File::exists(helpMenuFilePath))
-				break;
-			core->language(allLangs[i]);
-			i++;
-		}
-		if (i == ARRAYSIZE(allLangs)) {
-			error("Couldn't find menus/help/help_[lang].xml for any language.");
+		const Common::String &lang = g_engine->getCore()->language();
+		Common::Path helpMenuFilePath = helpMenuPath.append(lang).appendInPlace(".xml");
+		if (!Common::File::exists(helpMenuFilePath)) {
+			helpMenuFilePath = helpMenuPath.append(".xml");
+			if (!Common::File::exists(helpMenuFilePath)) {
+				helpMenuFilePath = helpMenuPath.append("en.xml");
+				if (!Common::File::exists(helpMenuFilePath)) {
+					error("Couldn't find menus/help/help_[lang].xml for selected language.");
+				}
+			}
 		}
 
 		_helpGui.load(helpMenuFilePath);
