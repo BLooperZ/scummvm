@@ -34,7 +34,7 @@ Common::Platform CruxEngine::getPlatform() const { return _gameDescription->plat
 
 } // End of namespace Crux
 
-class CruxMetaEngine : public AdvancedMetaEngine {
+class CruxMetaEngine : public AdvancedMetaEngine<ADGameDescription> {
 public:
 	const char *getName() const override {
 		return "crux";
