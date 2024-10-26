@@ -22,47 +22,47 @@
 #ifndef CRUX_CRUX_H
 #define CRUX_CRUX_H
 
-#include "common/scummsys.h"
-#include "common/config-manager.h"
-#include "common/debug.h"
-#include "common/debug-channels.h"
-#include "common/error.h"
 #include "common/array.h"
+#include "common/config-manager.h"
+#include "common/debug-channels.h"
+#include "common/debug.h"
+#include "common/error.h"
 #include "common/random.h"
+#include "common/scummsys.h"
 #include "engines/engine.h"
-#include "gui/debugger.h"
-#include "graphics/surface.h"
 #include "graphics/screen.h"
+#include "graphics/surface.h"
+#include "gui/debugger.h"
 
 struct ADGameDescription;
 
 namespace Crux {
 
 struct ResourceEntry {
-    uint32 offset;
-    uint32 length;
+	uint32 offset;
+	uint32 length;
 };
 
 class ResourceId {
-    public:
-    	ResourceId(uint32 type, Common::String name): _type(type), _name(name) {
-        }
+public:
+	ResourceId(uint32 type, Common::String name) : _type(type), _name(name) {
+	}
 
-        inline uint hash() const {
-            return ((uint)((_type << 16) ^ _name.hash()));
-	    }
+	inline uint hash() const {
+		return ((uint)((_type << 16) ^ _name.hash()));
+	}
 
-        bool operator==(const ResourceId &other) const {
+	bool operator==(const ResourceId &other) const {
 		return (_type == other._type) && (_name.equals(other._name));
-        }
+	}
 
 	bool operator!=(const ResourceId &other) const {
 		return !operator==(other);
 	}
 
-    private:
-        uint32 _type;
-        Common::String _name;
+public:
+	uint32 _type;
+	Common::String _name;
 };
 
 struct ResourceIdHash : public Common::UnaryFunction<ResourceId, uint> {
@@ -104,20 +104,23 @@ public:
 	void setMousePosition(int16 x, int16 y);
 	bool isMouseButtonDown();
 
-        void playVideo(const char *name);
+	void playVideo(const char *name);
+	void dumpResource(const char *filename, const ResourceId &res);
+	int loadResource(const ResourceId &res, uint8_t *&data, uint32_t &length);
+	void loadBackground(const char *name);
 	void loadScript(const char *name);
-        void decodePalette(byte *buffer, uint32 length);
-        void decodePicture(byte *buffer, uint32 length, Graphics::Surface surface);
+	void decodePalette(byte *buffer, uint32 length);
+	void decodePicture(byte *buffer, uint32 length, Graphics::Surface surface);
 
 private:
 	int _mouseButton;
-        Common::HashMap<ResourceId, ResourceEntry, ResourceIdHash> _resources;
+	Common::HashMap<ResourceId, ResourceEntry, ResourceIdHash> _resources;
 
 	Common::Array<Common::String> readArrayOfStrings(Common::File &f);
 	Common::String serializeStringArray(Common::Array<Common::String> &arr);
 
-        void decodePicture1(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
-        void decodePicture4(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
+	void decodePicture1(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
+	void decodePicture4(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
 };
 
 extern CruxEngine *g_ed;

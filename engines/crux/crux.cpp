@@ -18,6 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
+#include <stdlib.h>
 
 #include "common/config-manager.h"
 #include "common/debug-channels.h"
@@ -27,6 +28,7 @@
 #include "common/file.h"
 #include "common/hashmap.h"
 #include "common/scummsys.h"
+#include "common/stream.h"
 #include "common/system.h"
 #include "engines/util.h"
 #include "graphics/palette.h"
@@ -35,6 +37,14 @@
 #include "graphics/surface.h"
 
 #include "crux/crux.h"
+
+#include <common/std/set.h>
+#include <image/png.h>
+
+#define RESOURCE_TYPE_PALETTE 3
+#define RESOURCE_TYPE_SCRIPT 4
+#define RESOURCE_TYPE_BACKGROUND 6
+#define RESOURCE_TYPE_CURSOR 7
 
 namespace Crux {
 
@@ -90,18 +100,28 @@ Common::Error CruxEngine::run() {
 		entry.offset = offset;
 		entry.length = length;
 		_resources[id] = entry;
-		// debug("Found file: %s, type=%d, offset=%d, size=%d", id.c_str(), type, offset, size);
+		debug("Found file: %s, type=0x%x, offset=%d, size=%d", name.c_str(), type, offset, length);
 	}
 
 	debug("Total number of resources: %d", _resources.size());
 
+	loadBackground("MENU");
+
+	for (auto l = _resources.begin(); l != _resources.end(); ++l) {
+		if (l->_key._type == RESOURCE_TYPE_BACKGROUND) {
+			loadBackground(l->_key._name.c_str());
+		}
+	}
+
 	// playVideo("VVKSPACE");
 	// playVideo("INTRO3");
+	// playVideo("BRVLEFT");
 	// playVideo("GNTLOGO");
 	// playVideo("STICK");
 	// playVideo("MENGINE");
+	// loadScript("VVI2");
 	// loadScript("MENU");
-	loadScript("ENTRY");
+	// loadScript("ENTRY");
 
 	/*
 		// Simple main event loop
@@ -116,10 +136,131 @@ Common::Error CruxEngine::run() {
 	return Common::kNoError;
 }
 
+int CruxEngine::loadResource(const ResourceId& res, uint8_t *&data, uint32_t &length) {
+	ResourceEntry entry = _resources.getVal(res);
+	length = entry.length;
+
+	Common::File inf;
+	inf.open("ADVENT.RES");
+	inf.seek(entry.offset);
+	data = new uint8_t[length];
+	inf.read(data, length);
+	inf.close();
+	return 0;
+}
+
+void CruxEngine::loadBackground(const char *name) {
+	uint8_t *data, *palette;
+	uint32 length;
+
+	loadResource(ResourceId(RESOURCE_TYPE_PALETTE, Common::String(name)), palette, length);
+	if (length != 786) {
+		// palette is 786 uncompressed. compressed palettes not supported at the moment
+		// there's an 18 bytes header for this resource.
+		debug("Palette is not of the right length (%d != 786)", length);
+		delete[] palette;
+		return;
+	}
+
+	loadResource(ResourceId(RESOURCE_TYPE_BACKGROUND, Common::String(name)), data, length);
+
+	// dumpResource("VVW", ResourceId(RESOURCE_TYPE_BACKGROUND, Common::String(name)));
+
+	if (data[0] != 0x10 || data[1] != 0x01 || data[8] != 0x01) {
+		// note: other bytes are not checked in the original header as well
+		debug("Loading background resource failed");
+		delete[] palette;
+		delete[] data;
+		return;
+	}
+
+	// patch palette
+	for (int i=0; i<768; i++) {
+		palette[18 + i] <<= 2;
+	}
+
+	uint16_t width = data[3] | (data[4] << 8);
+	uint16_t height = data[5] | (data[6] << 8);
+	uint16_t x = data[12] | (data[13] << 8);
+	uint16_t y = data[14] | (data[15] << 8);
+	uint32_t size = data[16] | (data[17] << 8) | (data[18] << 16) | (data[19] << 24);
+
+	debug("w %d h %d x %d y %d size %d length %d", width, height, x, y, size, length);
+
+	char dummy[768];
+	Common::sprintf_s(dummy, sizeof(dummy), "%s.png", name);
+
+	Common::FSNode file(dummy);
+	Graphics::Surface surface;
+	surface.create(640, 480, Graphics::PixelFormat::createFormatCLUT8());
+
+	uint8_t *ptr = &data[20];
+
+	/*
+	for (int y=0; y<100; y++) {
+		int x = 0;
+		while (x < 640) {
+			if (*ptr & 0x80) {
+				uint8_t count = 0x100 - *ptr;
+				ptr++;
+				while (count-- > 0 && x < width - 1) {
+					surface.setPixel(x++, y, *ptr++);
+				}
+			} else {
+				uint8_t count = *ptr++;
+				uint8_t color = *ptr++;
+				while (count-- > 0 && x < width - 1) {
+					surface.setPixel(x++, y, color);
+				}
+			}
+		}
+	}*/
+
+	uint8_t *pixels = (uint8_t *)surface.getPixels();
+	/*
+	uint8_t *end = ptr + size;
+	while (ptr < end) {
+		if (*ptr == 0xff) {
+			ptr++;
+			uint8_t count = *ptr++;
+			uint8_t color = *ptr++;
+			debug("RLE color=%d count=%d", color, count);
+			while (count-- > 0) {
+				*pixels++ = color;
+			}
+		} else {
+			*pixels++ = *ptr++;
+		}
+	}
+	*/
+	decodePicture1(ptr, size, surface);
+
+	debug("Wrote %d bytes", (long)pixels - (long)surface.getPixels());
+
+	Common::WriteStream *out = file.createWriteStream();
+	Image::writePNG(*out, surface, &palette[18]);
+
+	delete[] data;
+	delete[] palette;
+}
+
+void CruxEngine::dumpResource(const char *filename, const ResourceId &res) {
+	uint8_t *data;
+	uint32 length;
+
+	loadResource(res, data, length);
+	Common::DumpFile f;
+	f.open(filename);
+	f.write(data, length);
+	f.close();
+
+	delete[] data;
+}
+
 void CruxEngine::loadScript(const char *name) {
 	debug("Loading script %s", name);
 
-	ResourceId id(4, Common::String(name));
+	ResourceId id(RESOURCE_TYPE_SCRIPT, Common::String(name));
 	ResourceEntry entry = _resources.getVal(id);
 	debug("Found script at %d %d", entry.offset, entry.length);
 
@@ -161,20 +302,22 @@ void CruxEngine::loadScript(const char *name) {
 	const uint32 number_of_scripts = f.readUint32LE();
 	debug("Number of scripts: %d", number_of_scripts);
 
+	Std::set<uint32> missing_opcodes;
+
 	for (int i = 0; i < number_of_scripts; i++) {
 		const uint32 number_of_commands = (script_type == 1 ? f.readByte() : f.readUint32LE());
 		debug("Commands in script %d: %d", i, number_of_commands);
 
 		for (int j = 0; j < number_of_commands; j++) {
-			const uint32 opcode = f.readUint32LE();
-			const uint32 arg1 = f.readUint32LE();
-			const uint32 arg2 = f.readUint32LE();
-			const uint32 arg3 = f.readUint32LE();
+			const auto opcode = f.readUint32LE();
+			const auto arg1 = f.readUint32LE();
+			const auto arg2 = f.readUint32LE();
+			const auto arg3 = f.readUint32LE();
 
 			switch (opcode) {
 
 			case 0x03:
-				debug("\t%04x: exit_value = exit_table_values[%d]", j, arg1);
+				debug("\t0x%04x: exit_value = exit_table_values[%d] /* %s */", j, arg1, exits[arg1].c_str());
 				break;
 
 			case 0x04:
@@ -182,27 +325,65 @@ void CruxEngine::loadScript(const char *name) {
 				break;
 
 			case 0x0a:
-				debug("\t%04x: if vars[0x%x] != 0x%x {", j, arg1, arg2);
+				// note: original code implements the skip instructions if !=
+				debug("\t0x%04x: if vars[0x%x] == 0x%x {", j, arg1, arg2);
+				break;
+
+			case 0x0e:
+				debug("\t0x%04x: if vars[0x%x] != 0x%x {", j, arg1, arg2);
 				break;
 
 			case 0x0c:
 				if (!strcmp(name, "ENTRY")) {
-					debug("\t%04x: /* 0xc in ENTRY script. code ends", j);
+					debug("\t0x%04x: /* 0xc in ENTRY script. code ends", j);
 				} else {
-					debug("\t%04x: (something with inventory)", j);
+					debug("\t0x%04x: (something with inventory)", j);
 				}
 				break;
 
 			case 0x0f:
-				debug("\t0x04x: }", j);
+				debug("\t0x04x: }");
 				break;
 
 			case 0x10:
-				debug("\t%04x: break", j);
+				debug("\t0x%04x: break", j);
+				break;
+
+			case 0x13:
+				debug("\t0x%04x: ani_rem_onscreen(0x%x)", j, arg1);
+				break;
+
+			case 0x14:
+				debug("\t0x%04x: thm_play(0x%x)", j, arg1);
+				break;
+
+			case 0x49:
+				debug("\t0x%04x: wait_frames_no_async()", j);
+				break;
+
+			case 0x65:
+				debug("\t0x%04x: call_script %d", j, arg1);
+				break;
+
+			case 0x71:
+				debug("\t0x%04x: intro_play(0x%x, 0x%x, 0x%x) /* %s */", j, arg1, arg2, arg3, strings[arg1].c_str());
+				break;
+
+			case 0x77:
+			case 0x78:
+				debug("\t0x%04x: scm_add(0x%x) /* \"%s\" */", j, arg1, strings[arg1].c_str());
+				break;
+
+			case 0xcd:
+				debug("\t0x%04x: nwspeak(0x%x) /* %s */", j, arg1, "");
 				break;
 
 			case 0xff:
 				debug("\t0x%04x: nop", j);
+				break;
+
+			case 0x12f:
+				debug("\t0x%04x: refpal()", j);
 				break;
 
 			case 0x170:
@@ -217,6 +398,23 @@ void CruxEngine::loadScript(const char *name) {
 				debug("\t0x%04x: si_spk_setvol(0x%x)", j, arg1);
 				break;
 
+			case 0x17a:
+				debug("\t0x%04x: spk_stop()", j);
+				break;
+
+			case 0x191:
+				debug("\t0x%04x: ani_suspend(0x%x)", j, arg1);
+				break;
+
+			case 0x195:
+				debug("\t0x%04x: ani_clear_suspended(0x%x)", j, arg1);
+				break;
+
+			case 0x196:
+				// note: this is flipped (arg2 first)
+				debug("\t0x%04x: async_add_timer(0x%x, 0x%0x)", j, arg2, arg1);
+				break;
+
 			case 0x901:
 				debug("\t0x%04x: gv_addbutton(%d, 0)", j, arg1);
 				break;
@@ -226,7 +424,12 @@ void CruxEngine::loadScript(const char *name) {
 				break;
 
 			case 0x903:
+				// note: arg1 ignored
 				debug("\t0x%04x: gv_addbutton(-1, %d)", j, arg2);
+				break;
+
+			case 0x905:
+				debug("\t0x%04x: sav_select_load()", j);
 				break;
 
 			case 0x84c:
@@ -258,19 +461,28 @@ void CruxEngine::loadScript(const char *name) {
 				break;
 
 			case 0x1004:
-				debug("\t%04x: initialize_script()", j);
+				debug("\t0x%04x: initialize_script()", j);
+				break;
+
+			case 0x13ba:
+				debug("\t0x%04x: ani_add_by_num(num=0x%x, prio=0x%x)", j, arg1, arg2);
 				break;
 
 			case 0x1838:
-				debug("\t%04x: gran_diary_init()", j);
+				debug("\t0x%04x: gran_diary_init()", j);
 				break;
 
 			default:
-				debug("\t0x%04x: 0x%08x 0x%08x 0x%08x 0x%08x", j, opcode, arg1, arg2, arg3, arg3);
+				debug("\t0x%04x: 0x%08x 0x%08x 0x%08x 0x%08x", j, opcode, arg1, arg2, arg3);
+				missing_opcodes.insert(opcode);
 				break;
 			}
 		}
 		// f.skip(16 * number_of_commands);
+	}
+
+	for (auto op : missing_opcodes) {
+		debug("missing opcode: 0x%x", op);
 	}
 }
 
@@ -768,7 +980,6 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 	// uint blocks_high = image_height / block_height;
 
 	buffer += 9;
-	uint8 *copy_of_buffer = NULL;
 
 	for (int y = 0; y < image_height; y += block_height) {
 		for (int x = 0; x < image_width; x += block_width) {
