@@ -196,46 +196,7 @@ void CruxEngine::loadBackground(const char *name) {
 
 	uint8_t *ptr = &data[20];
 
-	/*
-	for (int y=0; y<100; y++) {
-		int x = 0;
-		while (x < 640) {
-			if (*ptr & 0x80) {
-				uint8_t count = 0x100 - *ptr;
-				ptr++;
-				while (count-- > 0 && x < width - 1) {
-					surface.setPixel(x++, y, *ptr++);
-				}
-			} else {
-				uint8_t count = *ptr++;
-				uint8_t color = *ptr++;
-				while (count-- > 0 && x < width - 1) {
-					surface.setPixel(x++, y, color);
-				}
-			}
-		}
-	}*/
-
-	uint8_t *pixels = (uint8_t *)surface.getPixels();
-	/*
-	uint8_t *end = ptr + size;
-	while (ptr < end) {
-		if (*ptr == 0xff) {
-			ptr++;
-			uint8_t count = *ptr++;
-			uint8_t color = *ptr++;
-			debug("RLE color=%d count=%d", color, count);
-			while (count-- > 0) {
-				*pixels++ = color;
-			}
-		} else {
-			*pixels++ = *ptr++;
-		}
-	}
-	*/
 	decodePicture1(ptr, size, surface);
-
-	debug("Wrote %d bytes", (long)pixels - (long)surface.getPixels());
 
 	Common::WriteStream *out = file.createWriteStream();
 	Image::writePNG(*out, surface, &palette[18]);
