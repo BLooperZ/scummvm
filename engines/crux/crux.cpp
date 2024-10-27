@@ -45,6 +45,7 @@
 #define RESOURCE_TYPE_SCRIPT 4
 #define RESOURCE_TYPE_BACKGROUND 6
 #define RESOURCE_TYPE_CURSOR 7
+#define RESOURCE_TYPE_VIDEO 0x10
 
 namespace Crux {
 
@@ -87,9 +88,9 @@ Common::Error CruxEngine::run() {
 	// _game->run();
 	Common::File f;
 	f.open("ADVENT.IDX");
-	// 0x1dcd
-	uint32 signature = f.readUint16LE();
-	while (f.pos() < f.size()) {
+	uint32 count = f.readUint32LE();
+	int file_index = 0;
+	while (file_index < count) {
 		Common::String name = f.readPascalString(false);
 		uint32 type = f.readUint32LE();
 		uint32 offset = f.readUint32LE();
@@ -100,13 +101,12 @@ Common::Error CruxEngine::run() {
 		entry.offset = offset;
 		entry.length = length;
 		_resources[id] = entry;
-		debug("Found file: %s, type=0x%x, offset=%d, size=%d", name.c_str(), type, offset, length);
+		debug("Found file %d: %s, type=0x%x, offset=%d, size=%d", file_index++, name.c_str(), type, offset, length);
 	}
-
 	debug("Total number of resources: %d", _resources.size());
 
-	dumpResource("BPO3GOUT", ResourceId(RESOURCE_TYPE_CURSOR, "BPO3GOUT"));
-	loadAnimation("OPRBDFFL");
+	// dumpResource("BPO3GOUT", ResourceId(RESOURCE_TYPE_CURSOR, "BPO3GOUT"));
+	// loadAnimation("CHANGECD");
 
 	/*
 	loadBackground("MENU");
@@ -120,12 +120,14 @@ Common::Error CruxEngine::run() {
 
 	// playVideo("VVKSPACE");
 	// playVideo("INTRO3");
+	playVideo("INTRO8");
 	// playVideo("BRVLEFT");
 	// playVideo("GNTLOGO");
 	// playVideo("STICK");
 	// playVideo("MENGINE");
 	// loadScript("VVI2");
 	// loadScript("MENU");
+	// loadScript("OPTIONS");
 	// loadScript("ENTRY");
 
 	/*
@@ -197,6 +199,7 @@ void CruxEngine::loadAnimation(const char *name) {
 	int frames = data[8] | (data[9] << 8);
 	debug("Animation of width=%d height=%d frames=%d", width, height, frames);
 
+	/*
 	auto *ptr = &data[0xc];
 	for (auto i = 0; i < frames; i++) {
 		uint16 x = ptr[0] | (ptr[1] << 8);
@@ -208,12 +211,17 @@ void CruxEngine::loadAnimation(const char *name) {
 	}
 
 	debug("Bytes since beginning of buffer %ld", (long)ptr - (long)data);
+	*/
 
-	const uint8_t *palette = loadPalette("OPTIONS");
+	const uint8_t *palette = loadPalette("CHANGECD");
 
 	auto frame_offset = 0xc + 8 * frames;
 
 	auto background = loadBackground("OPTIONS");
+	/*
+	auto *background = new Graphics::Surface();
+	background->create(640, 480, Graphics::PixelFormat::createFormatCLUT8());
+	*/
 
 	Graphics::Surface surface;
 	surface.create(640, 480, Graphics::PixelFormat::createFormatCLUT8());
@@ -222,12 +230,12 @@ void CruxEngine::loadAnimation(const char *name) {
 		char dummy[768];
 		Common::sprintf_s(dummy, sizeof(dummy), "%s-%03d.png", name, i);
 
-		uint16 x0 = data[0x0c + i*8 + 0] | (data[0x0c + i*8 + 1] << 8);
-		uint16 y0 = data[0x0c + i*8 + 2] | (data[0x0c + i*8 + 3] << 8);
-		uint16 frame_size = data[0x0c + i * 8 + 4] | (data[0x0c + i * 8 + 5] << 8);
+		const uint16 x0 = data[0x0c + i * 8 + 0] | (data[0x0c + i * 8 + 1] << 8);
+		const uint16 y0 = data[0x0c + i * 8 + 2] | (data[0x0c + i * 8 + 3] << 8);
+		const uint16 frame_size = data[0x0c + i * 8 + 4] | (data[0x0c + i * 8 + 5] << 8);
 		debug("Current frame size: %d", frame_size);
 
-		Common::FSNode file(dummy);
+		const Common::FSNode file(dummy);
 		surface.copyFrom(*background);
 		decodePicture1(data + frame_offset, frame_size, x0, y0, surface);
 		Common::WriteStream *out = file.createWriteStream();
@@ -415,7 +423,7 @@ void CruxEngine::loadScript(const char *name) {
 				break;
 
 			case 0x10:
-				debug("\t0x%04x: break", j);
+				debug("\t0x%04x: } else {", j);
 				break;
 
 			case 0x13:
@@ -447,6 +455,10 @@ void CruxEngine::loadScript(const char *name) {
 				debug("\t0x%04x: call_script %d", j, arg1);
 				break;
 
+			case 0x70:
+				debug("\t0x%04x: exit() /* ?? */", j);
+				break;
+
 			case 0x71:
 				debug("\t0x%04x: intro_play(0x%x, 0x%x, 0x%x) /* %s */", j, arg1, arg2, arg3, strings[arg1].c_str());
 				break;
@@ -467,6 +479,10 @@ void CruxEngine::loadScript(const char *name) {
 
 			case 0x12f:
 				debug("\t0x%04x: refpal()", j);
+				break;
+
+			case 0x13c:
+				debug("\t0x%04x: ani_set_frame(0x%x, %d) /* %s */", j, arg1, arg2, animations[arg1].c_str());
 				break;
 
 			case 0x16c:
@@ -607,7 +623,7 @@ Common::Array<Common::String> CruxEngine::readArrayOfStrings(Common::File &f) {
 void CruxEngine::playVideo(const char *name) {
 	debug("Playing video %s", name);
 
-	ResourceId id(16, Common::String(name));
+	ResourceId id(RESOURCE_TYPE_VIDEO, Common::String(name));
 	ResourceEntry entry = _resources.getVal(id);
 	debug("Found video at %d %d", entry.offset, entry.length);
 
@@ -634,9 +650,9 @@ void CruxEngine::playVideo(const char *name) {
 		debug("Playing frame: %d, total chunks: %d", frame_index, count);
 		uint16 chunk_index = 0;
 		while (count-- > 0) {
-			uint32 chunk_size = f.readUint32LE();
-			uint16 chunk_type = f.readUint16LE();
-			uint16 unknown = f.readUint16LE();
+			const auto chunk_size = f.readUint32LE();
+			const auto chunk_type = f.readUint16LE();
+			const auto unknown = f.readUint16LE();
 			debug("Chunk index: %d, chunk type 0x%x, chunk size %d, unknown %d", chunk_index, chunk_type, chunk_size, unknown);
 			chunk_index++;
 
@@ -677,7 +693,7 @@ void CruxEngine::playVideo(const char *name) {
 	}
 }
 
-byte *put_single_col(byte *buffer, byte *tto, int block_width, int image_width) {
+static byte *put_single_col(byte *buffer, byte *tto, int block_width, int image_width) {
 	// int a = 0;
 	byte *b = tto;
 	long direction = 1;
@@ -734,9 +750,9 @@ static int DAT_00647848 = 0;
 void CruxEngine::decodePalette(byte *buffer, uint32 length) {
 	byte palette[768];
 
-	auto start = buffer[0];
-	auto end = buffer[1];
-	auto total = (end - start + 1) * 3;
+	const auto start = buffer[0];
+	const auto end = buffer[1];
+	const auto total = (end - start + 1) * 3;
 	byte *out = palette;
 	byte *in = buffer + 2;
 	for (auto i = 0; i < total; i++) {
@@ -755,9 +771,9 @@ void CruxEngine::decodePicture(byte *buffer, uint32 length, Graphics::Surface su
 	}
 }
 
-byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block_width) {
+static byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block_width) {
 
-	byte *copy_of_buffer = buffer + 1;
+	const byte *copy_of_buffer = buffer + 1;
 
 	int b = *buffer++;
 	if (b != 0xff) {
@@ -839,7 +855,7 @@ byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block_width)
 	return buffer;
 }
 
-byte *put_block_skip64(byte *buffer, byte *to, int image_width, int block_width) {
+static byte *put_block_skip64(byte *buffer, byte *to, int image_width, int block_width) {
 
 	byte *copy_of_buffer = buffer;
 	byte *tto = to;
@@ -905,7 +921,7 @@ byte *put_block_skip64(byte *buffer, byte *to, int image_width, int block_width)
 	return buffer;
 }
 
-byte *dput_block_skip16(byte *buffer, byte *to, int image_width, int block_width) {
+static byte *dput_block_skip16(byte *buffer, byte *to, int image_width, int block_width) {
 
 	byte *copy_of_buffer = buffer;
 	byte *tto = to;
@@ -969,7 +985,7 @@ byte *dput_block_skip16(byte *buffer, byte *to, int image_width, int block_width
 	return buffer;
 }
 
-byte *dput_block_skip8(byte *buffer, byte *to, int image_width, int block_width) {
+static byte *dput_block_skip8(byte *buffer, byte *to, int image_width, int block_width) {
 
 	byte *copy_of_buffer = buffer;
 	byte *tto = to;
@@ -1034,7 +1050,7 @@ byte *dput_block_skip8(byte *buffer, byte *to, int image_width, int block_width)
 	return buffer;
 }
 
-byte *put_block_copy(byte *buffer, byte *to, int image_width, int block_width, int block_height) {
+static byte *put_block_copy(byte *buffer, byte *to, int image_width, int block_width, int block_height) {
 
 	auto blocky = block_height;
 
@@ -1059,14 +1075,21 @@ byte *put_block_copy(byte *buffer, byte *to, int image_width, int block_width, i
 	return buffer;
 }
 
+static void printHeader(const byte *buffer) {
+	debug("What's this: %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8]);
+}
+
 void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface surface) {
 
+	printHeader(buffer);
+	uint image_type = buffer[0];
 	uint image_width = (buffer[1]) | (buffer[2] << 8);
 	uint image_height = (buffer[3]) | (buffer[4] << 8);
 	uint block_width = (buffer[5]) | (buffer[6] << 8);
 	uint block_height = (buffer[7]) | (buffer[8] << 8);
 	// uint blocks_wide = image_width / block_width;
 	// uint blocks_high = image_height / block_height;
+	debug("image_type %d image_width %d image_height %d, block_width %d, block_height %d", image_type, image_width, image_height, block_width, block_height);
 
 	buffer += 9;
 
@@ -1116,25 +1139,21 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 	}
 }
 
-static void printHeader(const byte *buffer) {
-	debug("What's this: %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8]);
-}
-
-int CruxEngine::decodePicture1(byte *buffer, uint32 length, uint x0, uint y0, Graphics::Surface surface) {
+int CruxEngine::decodePicture1(byte *buffer, uint32 length, uint x0, uint blt_y0, Graphics::Surface surface) {
 
 	printHeader(buffer);
 	byte image_type = buffer[0];
 	uint image_width = (buffer[1]) | (buffer[2] << 8);
 	uint image_height = (buffer[3]) | (buffer[4] << 8);
-	uint unknown = (buffer[5]) | (buffer[6] << 8);
+	uint y0 = (buffer[5]) | (buffer[6] << 8);
 	uint height = (buffer[7]) | (buffer[8] << 8);
 
-	debug("image_type %d unknown %d height %d, image: %d x %d", image_type, unknown, height, image_width, image_height);
+	debug("image_type %d image_width: %d, image_height %d y0 %d unknown %d", image_type, image_width, image_height, y0, height);
 
 	int offset = 9;
 	while (offset < length) {
-		for (int y = 0; y < height; y++) {
-			auto *dst = static_cast<byte *>(surface.getBasePtr(x0, y + y0));
+		for (int y = 0; y < image_height; y++) {
+			auto *dst = static_cast<byte *>(surface.getBasePtr(x0, y + y0 + blt_y0));
 
 			const byte type = buffer[offset++];
 			// debug("y=%d/%d type=%d", y, height, type);
@@ -1174,7 +1193,7 @@ int CruxEngine::decodePicture1(byte *buffer, uint32 length, uint x0, uint y0, Gr
 					}
 
 					if (times >= 0x80) {
-						times = 256 - times;
+						times = 0x100 - times;
 						while (times-- > 0) {
 							*dst++ = buffer[offset++];
 						}
@@ -1196,7 +1215,7 @@ int CruxEngine::decodePicture1(byte *buffer, uint32 length, uint x0, uint y0, Gr
 							*dst++ = c;
 						}
 					} else if (times >= 0x80) {
-						times = 256 - times;
+						times = 0x100 - times;
 						while (times-- > 0) {
 							*dst++ = buffer[offset++];
 						}
@@ -1216,7 +1235,7 @@ int CruxEngine::decodePicture1(byte *buffer, uint32 length, uint x0, uint y0, Gr
 				break;
 
 			default:
-				debug("Don't know how to handle type %d", type);
+				debug("Don't know how to handle type %d in decodePicture1", type);
 				return -1;
 			}
 		}
