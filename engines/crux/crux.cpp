@@ -105,6 +105,10 @@ Common::Error CruxEngine::run() {
 
 	debug("Total number of resources: %d", _resources.size());
 
+	dumpResource("BPO3GOUT", ResourceId(RESOURCE_TYPE_CURSOR, "BPO3GOUT"));
+	loadAnimation("OPRBDFFL");
+
+	/*
 	loadBackground("MENU");
 
 	for (auto l = _resources.begin(); l != _resources.end(); ++l) {
@@ -112,6 +116,7 @@ Common::Error CruxEngine::run() {
 			loadBackground(l->_key._name.c_str());
 		}
 	}
+	*/
 
 	// playVideo("VVKSPACE");
 	// playVideo("INTRO3");
@@ -119,7 +124,7 @@ Common::Error CruxEngine::run() {
 	// playVideo("GNTLOGO");
 	// playVideo("STICK");
 	// playVideo("MENGINE");
-	// loadScript("VVI2");
+	loadScript("VVI2");
 	// loadScript("MENU");
 	// loadScript("ENTRY");
 
@@ -136,7 +141,7 @@ Common::Error CruxEngine::run() {
 	return Common::kNoError;
 }
 
-int CruxEngine::loadResource(const ResourceId& res, uint8_t *&data, uint32_t &length) {
+int CruxEngine::loadResource(const ResourceId &res, uint8_t *&data, uint32_t &length) {
 	ResourceEntry entry = _resources.getVal(res);
 	length = entry.length;
 
@@ -149,22 +154,97 @@ int CruxEngine::loadResource(const ResourceId& res, uint8_t *&data, uint32_t &le
 	return 0;
 }
 
-void CruxEngine::loadBackground(const char *name) {
-	uint8_t *data, *palette;
-	uint32 length;
+byte *CruxEngine::loadPalette(const char *name) {
+	byte *buffer;
+	uint32_t length;
 
-	loadResource(ResourceId(RESOURCE_TYPE_PALETTE, Common::String(name)), palette, length);
+	loadResource(ResourceId(RESOURCE_TYPE_PALETTE, Common::String(name)), buffer, length);
 	if (length != 786) {
 		// palette is 786 uncompressed. compressed palettes not supported at the moment
 		// there's an 18 bytes header for this resource.
 		debug("Palette is not of the right length (%d != 786)", length);
-		delete[] palette;
+		delete[] buffer;
+		return nullptr;
+	}
+
+	byte *palette = new byte[768];
+
+	// patch palette
+	for (int i = 0; i < 768; i++) {
+		palette[i] = (buffer[i + 18] << 2);
+	}
+
+	// TODO: add support for rle compressed palettes
+
+	delete[] buffer;
+	return palette;
+}
+
+void CruxEngine::loadAnimation(const char *name) {
+	uint8_t *data;
+	uint32_t length;
+
+	loadResource(ResourceId(RESOURCE_TYPE_CURSOR, Common::String(name)), data, length);
+
+	if (data[0] != 0x10 || data[1] != 0x01 || data[2] != 0x00 || data[7] != 0x08) {
+		debug("Not a valid animation format");
+		delete[] data;
+		return;
+	}
+
+	int width = data[3] | (data[4] << 8);
+	int height = data[5] | (data[6] << 8);
+	int frames = data[8] | (data[9] << 8);
+	debug("Animation of width=%d height=%d frames=%d", width, height, frames);
+
+	auto *ptr = &data[0xc];
+	for (auto i = 0; i < frames; i++) {
+		uint16 x = ptr[0] | (ptr[1] << 8);
+		uint16 y = ptr[2] | (ptr[3] << 8);
+		uint16 frame_size = ptr[4] | (ptr[5] << 8);
+		uint16 w = ptr[6] | (ptr[7] << 8);
+		ptr += 8;
+		debug("x=%d, y=%d, frame_size=%d, w=%d", x, y, frame_size, w);
+	}
+
+	debug("Bytes since beginning of buffer %ld", (long)ptr - (long)data);
+
+	const uint8_t *palette = loadPalette("OPTIONS");
+	// B, ,G,I,I2,Q,W
+
+	auto frame_offset = 0xc + 8 * frames;
+
+	for (auto i = 0; i < frames; i++) {
+		char dummy[768];
+		Common::sprintf_s(dummy, sizeof(dummy), "%s-%03d.png", name, i);
+
+		uint16 frame_size = data[0x0c + i * 8 + 4] | (data[0x0c + i * 8 + 5] << 8);
+		debug("Current frame size: %d", frame_size);
+
+		Common::FSNode file(dummy);
+		Graphics::Surface surface;
+		surface.create(640, 480, Graphics::PixelFormat::createFormatCLUT8());
+		auto offset = decodePicture1(data + frame_offset, frame_size, surface);
+		debug("Decoded frame in %d bytes", offset);
+		Common::WriteStream *out = file.createWriteStream();
+		Image::writePNG(*out, surface, palette);
+
+		frame_offset += frame_size;
+	}
+
+	delete[] data;
+}
+
+void CruxEngine::loadBackground(const char *name) {
+	uint8_t *data;
+	uint32 length;
+
+	uint8_t *palette = loadPalette(name);
+	if (palette == nullptr) {
 		return;
 	}
 
 	loadResource(ResourceId(RESOURCE_TYPE_BACKGROUND, Common::String(name)), data, length);
-
-	// dumpResource("VVW", ResourceId(RESOURCE_TYPE_BACKGROUND, Common::String(name)));
 
 	if (data[0] != 0x10 || data[1] != 0x01 || data[8] != 0x01) {
 		// note: other bytes are not checked in the original header as well
@@ -172,11 +252,6 @@ void CruxEngine::loadBackground(const char *name) {
 		delete[] palette;
 		delete[] data;
 		return;
-	}
-
-	// patch palette
-	for (int i=0; i<768; i++) {
-		palette[18 + i] <<= 2;
 	}
 
 	uint16_t width = data[3] | (data[4] << 8);
@@ -199,7 +274,7 @@ void CruxEngine::loadBackground(const char *name) {
 	decodePicture1(ptr, size, surface);
 
 	Common::WriteStream *out = file.createWriteStream();
-	Image::writePNG(*out, surface, &palette[18]);
+	Image::writePNG(*out, surface, palette);
 
 	delete[] data;
 	delete[] palette;
@@ -426,7 +501,7 @@ void CruxEngine::loadScript(const char *name) {
 				break;
 
 			case 0x13ba:
-				debug("\t0x%04x: ani_add_by_num(num=0x%x, prio=0x%x)", j, arg1, arg2);
+				debug("\t0x%04x: ani_add_by_num(num=0x%x, prio=0x%x) /* %s */", j, arg1, arg2, animations[arg1].c_str());
 				break;
 
 			case 0x1838:
@@ -988,9 +1063,13 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 	}
 }
 
-void CruxEngine::decodePicture1(byte *buffer, uint32 length, Graphics::Surface surface) {
-
+static void printHeader(const byte *buffer) {
 	debug("What's this: %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8]);
+}
+
+int CruxEngine::decodePicture1(byte *buffer, uint32 length, Graphics::Surface surface) {
+
+	printHeader(buffer);
 	byte image_type = buffer[0];
 	uint image_width = (buffer[1]) | (buffer[2] << 8);
 	uint image_height = (buffer[3]) | (buffer[4] << 8);
@@ -1002,9 +1081,9 @@ void CruxEngine::decodePicture1(byte *buffer, uint32 length, Graphics::Surface s
 	int offset = 9;
 	while (offset < length) {
 		for (int y = 0; y < height; y++) {
-			byte *dst = (byte *)surface.getBasePtr(0, y + y0);
+			auto *dst = static_cast<byte *>(surface.getBasePtr(0, y + y0));
 
-			byte type = buffer[offset++];
+			const byte type = buffer[offset++];
 			// debug("y=%d/%d type=%d", y, height, type);
 			switch (type) {
 
@@ -1085,8 +1164,7 @@ void CruxEngine::decodePicture1(byte *buffer, uint32 length, Graphics::Surface s
 
 			default:
 				debug("Don't know how to handle type %d", type);
-				return;
-				break;
+				return -1;
 			}
 		}
 
@@ -1102,6 +1180,8 @@ void CruxEngine::decodePicture1(byte *buffer, uint32 length, Graphics::Surface s
 
 		height = new_height;
 	}
+
+	return offset;
 }
 
 bool CruxEngine::hasFeature(EngineFeature f) const {

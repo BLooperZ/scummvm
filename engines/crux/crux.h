@@ -107,6 +107,8 @@ public:
 	void playVideo(const char *name);
 	void dumpResource(const char *filename, const ResourceId &res);
 	int loadResource(const ResourceId &res, uint8_t *&data, uint32_t &length);
+	byte *loadPalette(const char *name);
+	void loadAnimation(const char *name);
 	void loadBackground(const char *name);
 	void loadScript(const char *name);
 	void decodePalette(byte *buffer, uint32 length);
@@ -119,7 +121,7 @@ private:
 	Common::Array<Common::String> readArrayOfStrings(Common::File &f);
 	Common::String serializeStringArray(Common::Array<Common::String> &arr);
 
-	void decodePicture1(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
+	int decodePicture1(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
 	void decodePicture4(byte *buffer, uint32 decodePicture, Graphics::Surface surface);
 };
 
