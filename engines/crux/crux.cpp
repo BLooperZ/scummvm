@@ -118,9 +118,13 @@ Common::Error CruxEngine::run() {
 	}
 	*/
 
+	// playVideo("TEL-220");
+	// // playVideo("MENGINE");
+	playVideo("GNTLOGO");
+	// playVideo("BRDFWR3");
 	// playVideo("VVKSPACE");
 	// playVideo("INTRO3");
-	playVideo("INTRO8");
+	// playVideo("INTRO8");
 	// playVideo("BRVLEFT");
 	// playVideo("GNTLOGO");
 	// playVideo("STICK");
@@ -128,6 +132,7 @@ Common::Error CruxEngine::run() {
 	// loadScript("VVI2");
 	// loadScript("MENU");
 	// loadScript("OPTIONS");
+	// loadScript("INTRO");
 	// loadScript("ENTRY");
 
 	/*
@@ -460,12 +465,12 @@ void CruxEngine::loadScript(const char *name) {
 				break;
 
 			case 0x71:
-				debug("\t0x%04x: intro_play(0x%x, 0x%x, 0x%x) /* %s */", j, arg1, arg2, arg3, strings[arg1].c_str());
+				debug("\t0x%04x: intro_play(0x%x, 0x%x, 0x%x) /* %s */", j, arg1, arg2, arg3, smc[arg1].c_str());
 				break;
 
 			case 0x77:
 			case 0x78:
-				debug("\t0x%04x: scm_add(0x%x) /* \"%s\" */", j, arg1, strings[arg1].c_str());
+				debug("\t0x%04x: scm_add(0x%x) /* \"%s\" */", j, arg1, smc[arg1].c_str());
 				break;
 
 			case 0xcd:
@@ -583,7 +588,6 @@ void CruxEngine::loadScript(const char *name) {
 				break;
 			}
 		}
-		// f.skip(16 * number_of_commands);
 	}
 
 	for (auto op : missing_opcodes) {
@@ -631,10 +635,10 @@ void CruxEngine::playVideo(const char *name) {
 	f.open("ADVENT.RES");
 	f.seek(entry.offset);
 
-	int a0 = f.readUint16LE();
-	uint16 a1 = f.readUint16LE();
-	uint16 frame_count = f.readUint16LE();
-	uint16 a3 = f.readUint16LE();
+	const uint16 a0 = f.readUint16LE();
+	const uint16 a1 = f.readUint16LE();
+	const uint16 frame_count = f.readUint16LE();
+	const uint16 a3 = f.readUint16LE();
 	debug("header: %04x %04x %04x %04x", a0, a1, frame_count, a3);
 
 	f.skip(8);
@@ -685,6 +689,10 @@ void CruxEngine::playVideo(const char *name) {
 		Common::Event evt;
 		g_system->getEventManager()->pollEvent(evt);
 
+		if (evt.kbd.keycode == Common::KEYCODE_ESCAPE) {
+			g_system->quit();
+		}
+
 		if (shouldQuit()) {
 			break;
 		}
@@ -712,7 +720,7 @@ static byte *put_single_col(byte *buffer, byte *tto, int block_width, int image_
 				f = block_width;
 			}
 
-			b = b + g * direction;
+			b += g * direction;
 		} else {
 			// *buffer > 0xee
 			long h = *buffer - 0xee;
@@ -723,8 +731,8 @@ static byte *put_single_col(byte *buffer, byte *tto, int block_width, int image_
 					b += direction;
 				}
 
-				d = d + image_width - direction * (block_width + 1);
-				b = b + image_width - direction;
+				d += image_width - direction * (block_width + 1);
+				b += image_width - direction;
 				direction = -direction;
 				h = h - i;
 				i = block_width;
@@ -764,10 +772,20 @@ void CruxEngine::decodePalette(byte *buffer, uint32 length) {
 
 void CruxEngine::decodePicture(byte *buffer, uint32 length, Graphics::Surface surface) {
 	auto type = buffer[0];
-	if (type == 0x04) {
-		decodePicture4(buffer, length, surface);
-	} else {
+	switch (type) {
+
+	case 0x01:
+	case 0x03:
 		decodePicture1(buffer, length, 0, 0, surface);
+		break;
+
+	case 0x04:
+		// decodePicture4(buffer, length, surface);
+		break;
+
+	default:
+		debug("decodePicture: unknown type %d", type);
+		break;
 	}
 }
 
@@ -1075,13 +1093,8 @@ static byte *put_block_copy(byte *buffer, byte *to, int image_width, int block_w
 	return buffer;
 }
 
-static void printHeader(const byte *buffer) {
-	debug("What's this: %02x %02x %02x %02x %02x %02x %02x %02x %02x", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7], buffer[8]);
-}
-
 void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface surface) {
 
-	printHeader(buffer);
 	uint image_type = buffer[0];
 	uint image_width = (buffer[1]) | (buffer[2] << 8);
 	uint image_height = (buffer[3]) | (buffer[4] << 8);
@@ -1089,18 +1102,18 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 	uint block_height = (buffer[7]) | (buffer[8] << 8);
 	// uint blocks_wide = image_width / block_width;
 	// uint blocks_high = image_height / block_height;
-	debug("image_type %d image_width %d image_height %d, block_width %d, block_height %d", image_type, image_width, image_height, block_width, block_height);
+	debug("[decodePicture4] image_type %d image_width %d image_height %d, block_width %d, block_height %d", image_type, image_width, image_height, block_width, block_height);
 
 	buffer += 9;
 
-	for (int y = 0; y < image_height; y += block_height) {
-		for (int x = 0; x < image_width; x += block_width) {
+	for (auto y = 0; y < image_height; y += block_height) {
+		for (auto x = 0; x < image_width; x += block_width) {
 			uint8 type = *buffer++;
 			if (type > 0) {
-				debug("Block with type=%x", type);
+				debug("Block with type=0x%x", type);
 			}
 
-			byte *to = (byte *)surface.getBasePtr(x, y);
+			byte *to = static_cast<byte *>(surface.getBasePtr(x, y));
 
 			switch (type) {
 			case 0:
@@ -1129,30 +1142,25 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 
 			default:
 				debug("Don't know how to handle type 0x%02x", type);
-				assert(0);
 				return;
 			}
-
-			// char *gg = 0; *gg = 1;
-			// return;
 		}
 	}
 }
 
 int CruxEngine::decodePicture1(byte *buffer, uint32 length, uint x0, uint blt_y0, Graphics::Surface surface) {
 
-	printHeader(buffer);
-	byte image_type = buffer[0];
-	uint image_width = (buffer[1]) | (buffer[2] << 8);
-	uint image_height = (buffer[3]) | (buffer[4] << 8);
+	const byte image_type = buffer[0];
+	const uint image_width = (buffer[1]) | (buffer[2] << 8);
+	const uint image_height = (buffer[3]) | (buffer[4] << 8);
 	uint y0 = (buffer[5]) | (buffer[6] << 8);
 	uint height = (buffer[7]) | (buffer[8] << 8);
 
-	debug("image_type %d image_width: %d, image_height %d y0 %d unknown %d", image_type, image_width, image_height, y0, height);
+	debug("[decodePicture1] image_type %d image_width: %d, image_height %d y0 %d unknown %d", image_type, image_width, image_height, y0, height);
 
 	int offset = 9;
 	while (offset < length) {
-		for (int y = 0; y < image_height; y++) {
+		for (int y = 0; y < height; y++) {
 			auto *dst = static_cast<byte *>(surface.getBasePtr(x0, y + y0 + blt_y0));
 
 			const byte type = buffer[offset++];
@@ -1253,6 +1261,7 @@ int CruxEngine::decodePicture1(byte *buffer, uint32 length, uint x0, uint blt_y0
 		height = new_height;
 	}
 
+	debug("");
 	return offset;
 }
 
