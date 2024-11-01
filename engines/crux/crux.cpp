@@ -47,6 +47,10 @@
 #define RESOURCE_TYPE_CURSOR 7
 #define RESOURCE_TYPE_VIDEO 0x10
 
+#define CHUNK_TYPE_AUDIO 0x0082
+#define CHUNK_TYPE_PALETTE 0x0002
+#define CHUNK_TYPE_PICTURE 0x0010
+
 namespace Crux {
 
 CruxEngine *g_ed = nullptr;
@@ -118,19 +122,22 @@ Common::Error CruxEngine::run() {
 	}
 	*/
 
+	// playVideo("STICK");
 	// playVideo("TEL-220");
-	// // playVideo("MENGINE");
-	playVideo("GNTLOGO");
+	// playVideo("MENGINE");
+	// playVideo("GNTLOGO");
 	// playVideo("BRDFWR3");
 	// playVideo("VVKSPACE");
 	// playVideo("INTRO3");
-	// playVideo("INTRO8");
+	playVideo("INTRO4");
+	playVideo("INTRO5");
+	playVideo("INTRO6");
+	playVideo("INTRO7");
+	playVideo("INTRO8");
 	// playVideo("BRVLEFT");
-	// playVideo("GNTLOGO");
-	// playVideo("STICK");
 	// playVideo("MENGINE");
 	// loadScript("VVI2");
-	// loadScript("MENU");
+	loadScript("MENU");
 	// loadScript("OPTIONS");
 	// loadScript("INTRO");
 	// loadScript("ENTRY");
@@ -346,11 +353,21 @@ void CruxEngine::loadScript(const char *name) {
 
 	// readCursors();
 	auto number_of_cursors = f.readUint32LE();
+	debug("  Cursors: %d cursors", number_of_cursors);
 	f.skip(number_of_cursors * 176);
 
 	// readAreas();
 	auto number_of_areas = f.readUint32LE();
-	f.skip(number_of_areas * 20);
+	debug("  Areas:");
+	for (auto i=0; i<number_of_areas; i++) {
+		const auto a0 = f.readUint32LE();
+		const auto a1 = f.readUint32LE();
+		const auto a2 = f.readUint32LE();
+		const auto a3 = f.readUint32LE();
+		const auto a4 = f.readUint32LE();
+		debug("    %d: %d, %d, %d, %d, %d", i, a0, a1, a2, a3, a4);
+		// debug("<rect x=%d y=%d width=%d height=%d fill='#ff00ff' fill-opacity=0.5 />", a0, a1, a2-a0, a3-a1);
+	}
 
 	// unknown
 	f.skip(0xf * 4);
@@ -590,9 +607,15 @@ void CruxEngine::loadScript(const char *name) {
 		}
 	}
 
+	/*
+	Common::String result = "";
 	for (auto op : missing_opcodes) {
-		debug("missing opcode: 0x%x", op);
+		// convert op to string
+		result += op + ", ";
 	}
+
+	debug("Missing opcodes: %s", result.c_str());
+	*/
 }
 
 Common::String CruxEngine::serializeStringArray(Common::Array<Common::String> &arr) {
@@ -667,15 +690,15 @@ void CruxEngine::playVideo(const char *name) {
 			byte *buffer = new byte[chunk_size];
 			f.read(buffer, chunk_size);
 
-			if (chunk_type == 0x0082) {
+			if (chunk_type == CHUNK_TYPE_AUDIO) {
 				// audio
 			}
 
-			if (chunk_type == 0x0002) {
+			if (chunk_type == CHUNK_TYPE_PALETTE) {
 				decodePalette(buffer, chunk_size);
 			}
 
-			if (chunk_type == 0x0010) {
+			if (chunk_type == CHUNK_TYPE_PICTURE) {
 				decodePicture(buffer, chunk_size, framebuffer);
 			}
 
@@ -710,6 +733,7 @@ static byte *put_single_col(byte *buffer, byte *tto, int block_width, int image_
 	byte color = *buffer++;
 	while (*buffer != 0xff) {
 		if (*buffer <= 0xee) {
+			// skip command
 			long f = abs(d - b);
 			long g = *buffer;
 			while (f <= g) {
@@ -722,7 +746,7 @@ static byte *put_single_col(byte *buffer, byte *tto, int block_width, int image_
 
 			b += g * direction;
 		} else {
-			// *buffer > 0xee
+			// draw command (*buffer >= 0xef)
 			long h = *buffer - 0xee;
 			long i = abs(d - b);
 			while (i <= h) {
@@ -731,15 +755,17 @@ static byte *put_single_col(byte *buffer, byte *tto, int block_width, int image_
 					b += direction;
 				}
 
+				// move to next line
 				d += image_width - direction * (block_width + 1);
 				b += image_width - direction;
 				direction = -direction;
-				h = h - i;
+				h -= i;
 				i = block_width;
 			}
 
-			byte *pbVar1 = b + h * direction;
-			while (b != pbVar1) {
+			// remaining pixels
+			byte *end = b + h * direction;
+			while (b != end) {
 				*b = color;
 				b += direction;
 			}
@@ -775,12 +801,13 @@ void CruxEngine::decodePicture(byte *buffer, uint32 length, Graphics::Surface su
 	switch (type) {
 
 	case 0x01:
+	case 0x02:
 	case 0x03:
 		decodePicture1(buffer, length, 0, 0, surface);
 		break;
 
 	case 0x04:
-		// decodePicture4(buffer, length, surface);
+		decodePicture4(buffer, length, surface);
 		break;
 
 	default:
@@ -789,13 +816,14 @@ void CruxEngine::decodePicture(byte *buffer, uint32 length, Graphics::Surface su
 	}
 }
 
-static byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block_width) {
+static byte *color_table = 0;
 
-	const byte *copy_of_buffer = buffer + 1;
+static byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block_width) {
 
 	int b = *buffer++;
 	if (b != 0xff) {
 		int local_44 = MIN(b, 16);
+		color_table = buffer;
 		buffer += local_44;
 		DAT_00647848 = b;
 	}
@@ -813,7 +841,7 @@ static byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block
 		}
 
 		if (local_28 != 0) {
-			local_24 = copy_of_buffer[(*buffer >> ((1 - local_3c) * 4)) & 0x0f];
+			local_24 = color_table[(*buffer >> ((1 - local_3c) * 4)) & 0x0f];
 			buffer += local_3c;
 			local_3c ^= 1;
 		}
@@ -821,7 +849,7 @@ static byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block
 		long iVar1 = abs(local_2c - to);
 		if (local_20 != 0 && iVar1 <= local_20) {
 			while (to != local_2c) {
-				*to = copy_of_buffer[(*buffer >> ((1 - local_3c) * 4)) & 0xf];
+				*to = color_table[(*buffer >> ((1 - local_3c) * 4)) & 0xf];
 				buffer += local_3c;
 				local_3c ^= 1;
 				to += direction;
@@ -835,7 +863,7 @@ static byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block
 
 		byte *puVar2 = to + local_20 * direction;
 		while (to != puVar2) {
-			*to = copy_of_buffer[(*buffer >> ((1 - local_3c) * 4)) & 0xf];
+			*to = color_table[(*buffer >> ((1 - local_3c) * 4)) & 0xf];
 			buffer += local_3c;
 			local_3c ^= 1;
 			to += direction;
@@ -875,13 +903,12 @@ static byte *put_block_brun16(byte *buffer, byte *to, int image_width, int block
 
 static byte *put_block_skip64(byte *buffer, byte *to, int image_width, int block_width) {
 
-	byte *copy_of_buffer = buffer;
 	byte *tto = to;
 
 	long direction = 1;
 	int c = *buffer++;
 	if (c != 0xff) {
-		copy_of_buffer = buffer;
+		color_table = buffer;
 		DAT_00647848 = c;
 		buffer += MIN(0x40, c);
 	}
@@ -893,16 +920,16 @@ static byte *put_block_skip64(byte *buffer, byte *to, int image_width, int block
 			long local_2c = abs(local_34 - to);
 			long local_28 = *buffer;
 			while (local_2c <= local_28) {
-				local_28 = local_28 - local_2c;
+				local_28 -= local_2c;
 				to = local_34 + image_width - direction;
-				local_34 = local_34 + image_width - ((block_width + 1) * direction);
+				local_34 += image_width - ((block_width + 1) * direction);
 				direction = -direction;
 				local_2c = block_width;
 			}
 
 			to = to + local_28 * direction;
 		} else {
-			long cVar1 = copy_of_buffer[*buffer & 0x3f];
+			long cVar1 = color_table[*buffer & 0x3f];
 			long local_24 = (*buffer & 0xc0) >> 6; // must be [1,2,3]
 			long local_44 = abs(local_34 - to);
 			while (local_44 <= local_24) {
@@ -941,88 +968,89 @@ static byte *put_block_skip64(byte *buffer, byte *to, int image_width, int block
 
 static byte *dput_block_skip16(byte *buffer, byte *to, int image_width, int block_width) {
 
-	byte *copy_of_buffer = buffer;
 	byte *tto = to;
 
 	long direction = 1;
 	int uVar2 = *buffer++;
 	if (uVar2 != 0xff) {
-		copy_of_buffer = buffer;
+		color_table = buffer;
 		DAT_00647848 = uVar2;
-		buffer += MIN(uVar2, 0x10);
+		buffer += MIN(uVar2, 16);
 	}
 
 	uVar2 = DAT_00647848;
 	byte *c = to + block_width;
 	while (*buffer != 0) {
-		if ((*buffer & 0xf0) == 0) {
-			int a = abs(c - to);
-			int b = *buffer;
-			while (a <= b) {
-				b = b - a;
+		uint8 cmd = *buffer++;
+		if ((cmd & 0xf0) == 0) {
+			long skip_dist = abs(c - to);
+			long skip_count = cmd;
+			while (skip_dist <= skip_count) {
+				skip_count -= skip_dist;
 				to = c + image_width - direction;
 				c = c + (image_width - (block_width + 1) * direction);
 				direction = -direction;
-				a = block_width;
+				skip_dist = block_width;
 			}
 
-			to = to + b * direction;
+			to += skip_count * direction;
 		} else {
-			long high_nibble = copy_of_buffer[*buffer & 0x0f];
-			long low_nibble = (*buffer & 0xf0) >> 4;
-			int f = abs(c - to);
-			if (f <= low_nibble) {
+			long color = color_table[cmd & 0x0f];
+			long count = (cmd & 0xf0) >> 4;
+			long f = abs(c - to);
+			if (f <= count) {
 				while (to != c) {
-					*to = high_nibble;
+					*to = color;
 					to += direction;
 				}
 
-				c = c + (image_width - (block_width + 1) * direction);
-				to = to + image_width - direction;
+				c += image_width - (block_width + 1) * direction;
+				to += image_width - direction;
 				direction = -direction;
-				low_nibble = low_nibble - f;
+				count -= f;
 			}
 
-			byte *h = to + low_nibble * direction;
+			byte *h = to + count * direction;
 			while (to != h) {
-				*to = high_nibble;
+				*to = color;
 				to += direction;
 			}
 		}
-
-		buffer++;
 	}
 
 	// skip 0
 	buffer++;
 
-	for (int i = 0x10; i < uVar2; i++) {
+	for (int i = 16; i < uVar2; i++) {
 		buffer = put_single_col(buffer, tto, block_width, image_width);
 	}
 
 	return buffer;
 }
 
-static byte *dput_block_skip8(byte *buffer, byte *to, int image_width, int block_width) {
+static byte *dput_block_skip8(uint8_t *buffer, byte *to, int image_width, int block_width, int is_debug) {
 
-	byte *copy_of_buffer = buffer;
 	byte *tto = to;
 
-	long direction = 1;
-	int uVar2 = *buffer++;
-	if (uVar2 != 0xff) {
-		int uVar3 = MIN(uVar2, 0x8);
-		copy_of_buffer = buffer;
-		DAT_00647848 = uVar2;
-		buffer += uVar3;
+	int direction = 1;
+	const int total_count = *buffer++;
+
+	if (total_count != 0xff) {
+		const int colors_in_table = MIN(total_count, 8);
+		color_table = buffer;
+		DAT_00647848 = total_count;
+		buffer += colors_in_table;
 	}
 
-	uVar2 = DAT_00647848;
+	int uVar2 = DAT_00647848;
 	byte *c = to + block_width;
-	while (*buffer != 0) {
-		if ((*buffer & 0xf8) == 0) {
-			int a = abs(c - to);
-			int b = *buffer;
+	while (*buffer != 0x00) {
+		const uint8_t cmd = *buffer++;
+		// debug("cmd 0x%x", cmd);
+		if ((cmd & 0xf8) == 0) {
+			long a = abs(c - to);
+			long b = cmd;
+			// debug("  looping from %ld to %ld", a, b);
 			while (a <= b) {
 				b = b - a;
 				to = c + image_width - direction;
@@ -1033,34 +1061,34 @@ static byte *dput_block_skip8(byte *buffer, byte *to, int image_width, int block
 
 			to = to + b * direction;
 		} else {
-			long high_nibble = copy_of_buffer[*buffer & 0x07];
-			long low_nibble = (*buffer & 0xf8) >> 3;
-			int f = abs(c - to);
-			if (f <= low_nibble) {
+			// 3 bits or color, 5 bits for count
+			const byte color = color_table[cmd & 0x07];
+			long count = (cmd >> 3) & 0x1f;
+			// debug("  pasting color %d, %ld times", color, count);
+			long f = abs(c - to);
+			if (f <= count) {
 				while (to != c) {
-					*to = high_nibble;
+					*to = color;
 					to += direction;
 				}
 
-				c = c + (image_width - (block_width + 1) * direction);
-				to = to + image_width - direction;
+				c += image_width - (block_width + 1) * direction;
+				to += image_width - direction;
 				direction = -direction;
-				low_nibble = low_nibble - f;
+				count -= f;
 			}
 
-			byte *h = to + low_nibble * direction;
-			while (to != h) {
-				*to = high_nibble;
+			for (auto i=0; i < count; i++) {
+				*to = color;
 				to += direction;
 			}
 		}
-
-		buffer++;
 	}
 
 	// skip 0
 	buffer++;
 
+	// debug("looping put_single_col from %d to %d", 8, uVar2);
 	for (int i = 8; i < uVar2; i++) {
 		buffer = put_single_col(buffer, tto, block_width, image_width);
 	}
@@ -1095,6 +1123,8 @@ static byte *put_block_copy(byte *buffer, byte *to, int image_width, int block_w
 
 void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface surface) {
 
+	// note: this function originally called bput_frame
+
 	uint image_type = buffer[0];
 	uint image_width = (buffer[1]) | (buffer[2] << 8);
 	uint image_height = (buffer[3]) | (buffer[4] << 8);
@@ -1106,11 +1136,16 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 
 	buffer += 9;
 
+	int is_debug = 0;
+
+	DAT_00647848 = -1;
+
 	for (auto y = 0; y < image_height; y += block_height) {
 		for (auto x = 0; x < image_width; x += block_width) {
 			uint8 type = *buffer++;
-			if (type > 0) {
-				debug("Block with type=0x%x", type);
+			if (type != 0) {
+				// debug("Block y=%d,x=%d with type=0x%x", y, x, type);
+				if (x == 96 && y == 416) is_debug=1; else is_debug = 0;
 			}
 
 			byte *to = static_cast<byte *>(surface.getBasePtr(x, y));
@@ -1137,12 +1172,13 @@ void CruxEngine::decodePicture4(byte *buffer, uint32 length, Graphics::Surface s
 				break;
 
 			case 8:
-				buffer = dput_block_skip8(buffer, to, image_width, block_width);
+				buffer = dput_block_skip8(buffer, to, image_width, block_width, is_debug);
 				break;
 
 			default:
 				debug("Don't know how to handle type 0x%02x", type);
-				return;
+				Engine::quitGame();
+				break;
 			}
 		}
 	}
