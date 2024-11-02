@@ -110,7 +110,8 @@ Common::Error CruxEngine::run() {
 	debug("Total number of resources: %d", _resources.size());
 
 	// dumpResource("BPO3GOUT", ResourceId(RESOURCE_TYPE_CURSOR, "BPO3GOUT"));
-	// loadAnimation("CHANGECD");
+	loadAnimation("MN_LOAD1");
+	loadAnimation("MN_LOAD2");
 
 	/*
 	loadBackground("MENU");
@@ -129,16 +130,16 @@ Common::Error CruxEngine::run() {
 	// playVideo("BRDFWR3");
 	// playVideo("VVKSPACE");
 	// playVideo("INTRO3");
-	playVideo("INTRO4");
-	playVideo("INTRO5");
-	playVideo("INTRO6");
-	playVideo("INTRO7");
-	playVideo("INTRO8");
+	// playVideo("INTRO4");
+	// playVideo("INTRO5");
+	// playVideo("INTRO6");
+	// playVideo("INTRO7");
+	// playVideo("INTRO8");
 	// playVideo("BRVLEFT");
 	// playVideo("MENGINE");
 	// loadScript("VVI2");
-	loadScript("MENU");
-	// loadScript("OPTIONS");
+	// loadScript("MENU");
+	loadScript("OPTIONS");
 	// loadScript("INTRO");
 	// loadScript("ENTRY");
 
@@ -225,11 +226,11 @@ void CruxEngine::loadAnimation(const char *name) {
 	debug("Bytes since beginning of buffer %ld", (long)ptr - (long)data);
 	*/
 
-	const uint8_t *palette = loadPalette("CHANGECD");
+	const uint8_t *palette = loadPalette("MENU");
 
 	auto frame_offset = 0xc + 8 * frames;
 
-	auto background = loadBackground("OPTIONS");
+	auto background = loadBackground("MENU");
 	/*
 	auto *background = new Graphics::Surface();
 	background->create(640, 480, Graphics::PixelFormat::createFormatCLUT8());
@@ -369,8 +370,13 @@ void CruxEngine::loadScript(const char *name) {
 		// debug("<rect x=%d y=%d width=%d height=%d fill='#ff00ff' fill-opacity=0.5 />", a0, a1, a2-a0, a3-a1);
 	}
 
+	debug( "Main script: %d", f.readUint32LE());
+
 	// unknown
-	f.skip(0xf * 4);
+	for (auto i=0; i<0xe; i++) {
+		debug("Unknown: 0x%x", f.readUint32LE());
+	}
+	// f.skip(0xf * 4);
 
 	const uint32 number_of_scripts = f.readUint32LE();
 	debug("Number of scripts: %d", number_of_scripts);
@@ -616,6 +622,8 @@ void CruxEngine::loadScript(const char *name) {
 
 	debug("Missing opcodes: %s", result.c_str());
 	*/
+
+	debug("Bytes left in file: %ld", entry.length - (f.pos() - entry.offset));
 }
 
 Common::String CruxEngine::serializeStringArray(Common::Array<Common::String> &arr) {
